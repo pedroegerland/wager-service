@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS outbox_events;
+DROP TABLE IF EXISTS inbox_messages;
+DROP TRIGGER IF EXISTS ledger_no_update_or_delete ON wallet_ledger_entries;
+DROP TABLE IF EXISTS wallet_ledger_entries;
+DROP FUNCTION IF EXISTS ledger_entries_are_immutable();
+DROP TABLE IF EXISTS wager_transactions;
+DROP TABLE IF EXISTS wallets;
+DROP TYPE IF EXISTS ledger_direction;
+DROP TYPE IF EXISTS wager_status;
+DROP TYPE IF EXISTS wager_kind;
+DROP TYPE IF EXISTS wager_origin;
