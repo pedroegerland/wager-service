@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/pedroegerland/wager-service/internal/app/port"
+	"github.com/pedroegerland/wager-service/internal/app/port/porttest"
 	"github.com/pedroegerland/wager-service/internal/domain"
 	"github.com/pedroegerland/wager-service/internal/domain/event"
 	"github.com/pedroegerland/wager-service/internal/domain/money"
@@ -28,20 +29,20 @@ func brl(s string) money.Money {
 }
 
 type testEnv struct {
-	store  *inMemoryStore
+	store  *porttest.InMemoryStore
 	proc   *Processor
 	wallet *wallet.Wallet
 }
 
 func newTestEnv(t *testing.T, balance string) *testEnv {
 	t.Helper()
-	store := newInMemoryStore()
+	store := porttest.NewInMemoryStore()
 	w, err := wallet.Open(uuid.New(), brl(balance), t0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	store.wallets[w.ID()] = w
-	proc := NewProcessor(store, &steppingClock{now: t0}, Config{MaxReferenceAttempts: 2, ReferenceBaseBackoff: time.Second}, slog.Default(), nil)
+	store.SeedWallet(w)
+	proc := NewProcessor(store, &porttest.SteppingClock{Time: t0}, Config{MaxReferenceAttempts: 2, ReferenceBaseBackoff: time.Second}, slog.Default(), nil)
 	return &testEnv{store: store, proc: proc, wallet: w}
 }
 
@@ -55,16 +56,8 @@ func (e *testEnv) op(kind wager.Kind, ext, amount, ref string) Operation {
 
 func (e *testEnv) balance(t *testing.T) string {
 	t.Helper()
-	w, _ := inMemoryWallets{e.store}.Get(context.Background(), e.wallet.ID())
+	w, _ := e.store.Repos().Wallets.Get(context.Background(), e.wallet.ID())
 	return w.Balance().String()
-}
-
-func (e *testEnv) eventTypes() []string {
-	var out []string
-	for _, ev := range e.store.events {
-		out = append(out, ev.EventType)
-	}
-	return out
 }
 
 func TestBetDebitsAndReplays(t *testing.T) {
@@ -79,7 +72,7 @@ func TestBetDebitsAndReplays(t *testing.T) {
 	if e.balance(t) != "75.00" {
 		t.Errorf("balance %s", e.balance(t))
 	}
-	if got := e.eventTypes(); len(got) != 2 || got[0] != event.TypeWagerTransactionProcessed || got[1] != event.TypeWalletBalanceChanged {
+	if got := e.store.EventTypes(); len(got) != 2 || got[0] != event.TypeWagerTransactionProcessed || got[1] != event.TypeWalletBalanceChanged {
 		t.Errorf("events %v", got)
 	}
 
@@ -96,8 +89,8 @@ func TestBetDebitsAndReplays(t *testing.T) {
 	if e.balance(t) != "85.00" {
 		t.Errorf("replay must not move money: %s", e.balance(t))
 	}
-	if len(e.store.ledger) != 2 {
-		t.Errorf("ledger entries %d", len(e.store.ledger))
+	if len(e.store.LedgerEntries()) != 2 {
+		t.Errorf("ledger entries %d", len(e.store.LedgerEntries()))
 	}
 }
 
@@ -156,10 +149,10 @@ func TestInsufficientFunds(t *testing.T) {
 	if res.Balance.String() != "10.00" || e.balance(t) != "10.00" {
 		t.Error("rejection must not move money")
 	}
-	if len(e.store.ledger) != 0 {
+	if len(e.store.LedgerEntries()) != 0 {
 		t.Error("rejection must not write to the ledger")
 	}
-	if got := e.eventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionRejected {
+	if got := e.store.EventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionRejected {
 		t.Errorf("events %v", got)
 	}
 
@@ -178,11 +171,11 @@ func TestLossNoMovement(t *testing.T) {
 	if res.Status != wager.StatusProcessed || res.Balance.String() != "10.00" {
 		t.Fatalf("got %+v", res)
 	}
-	w, _ := inMemoryWallets{e.store}.Get(context.Background(), e.wallet.ID())
-	if w.Version() != 1 || len(e.store.ledger) != 0 {
+	w, _ := e.store.Repos().Wallets.Get(context.Background(), e.wallet.ID())
+	if w.Version() != 1 || len(e.store.LedgerEntries()) != 0 {
 		t.Error("LOSS must not bump version or touch the ledger")
 	}
-	if got := e.eventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionProcessed {
+	if got := e.store.EventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionProcessed {
 		t.Errorf("events %v", got)
 	}
 	_, err = e.proc.Process(context.Background(), e.op(wager.KindLoss, "loss-2", "1.00", ""))
@@ -295,7 +288,7 @@ func TestPendingReferenceThenResolved(t *testing.T) {
 	if r.Status != wager.StatusPendingReference || r.Balance != nil {
 		t.Fatalf("got %+v", r)
 	}
-	if got := e.eventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionPendingReference {
+	if got := e.store.EventTypes(); len(got) != 1 || got[0] != event.TypeWagerTransactionPendingReference {
 		t.Errorf("events %v", got)
 	}
 
@@ -304,7 +297,7 @@ func TestPendingReferenceThenResolved(t *testing.T) {
 		t.Errorf("pending replay %+v", again)
 	}
 
-	e.proc.clock = &steppingClock{now: t0}
+	e.proc.clock = &porttest.SteppingClock{Time: t0}
 	if did, _ := e.proc.RetryOnePendingReference(ctx); did {
 		t.Error("should not retry before nextAttemptAt")
 	}
@@ -312,12 +305,12 @@ func TestPendingReferenceThenResolved(t *testing.T) {
 	if _, err := e.proc.Process(ctx, e.op(wager.KindBet, "bet-1", "30.00", "")); err != nil {
 		t.Fatal(err)
 	}
-	e.proc.clock = &steppingClock{now: t0.Add(time.Minute)}
+	e.proc.clock = &porttest.SteppingClock{Time: t0.Add(time.Minute)}
 	did, err := e.proc.RetryOnePendingReference(ctx)
 	if err != nil || !did {
 		t.Fatalf("retry: %v %v", did, err)
 	}
-	tx, _ := inMemoryTransactions{e.store}.Get(ctx, r.TransactionID)
+	tx, _ := e.store.Repos().Transactions.Get(ctx, r.TransactionID)
 	if tx.Status() != wager.StatusProcessed || tx.ReferenceTxID() == nil {
 		t.Errorf("after retry: %s", tx.Status())
 	}
@@ -332,12 +325,12 @@ func TestPendingReferenceExpires(t *testing.T) {
 	r, _ := e.proc.Process(ctx, e.op(wager.KindRollback, "rb-1", "30.00", "ghost"))
 
 	for i := 0; i < 3; i++ {
-		e.proc.clock = &steppingClock{now: t0.Add(time.Duration(i+1) * time.Hour)}
+		e.proc.clock = &porttest.SteppingClock{Time: t0.Add(time.Duration(i+1) * time.Hour)}
 		if _, err := e.proc.RetryOnePendingReference(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
-	tx, _ := inMemoryTransactions{e.store}.Get(ctx, r.TransactionID)
+	tx, _ := e.store.Repos().Transactions.Get(ctx, r.TransactionID)
 	if tx.Status() != wager.StatusRejected || tx.FailureCode() != wager.CodeReferenceNotFound {
 		t.Errorf("got %s %s attempts=%d", tx.Status(), tx.FailureCode(), tx.Attempts())
 	}

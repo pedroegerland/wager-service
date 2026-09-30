@@ -1,4 +1,4 @@
-package wagering
+package porttest
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/pedroegerland/wager-service/internal/domain/wallet"
 )
 
-type inMemoryStore struct {
+type InMemoryStore struct {
 	mu      sync.Mutex
 	wallets map[uuid.UUID]*wallet.Wallet
 	txs     map[uuid.UUID]*wager.Transaction
@@ -22,15 +22,33 @@ type inMemoryStore struct {
 	inbox   map[string]string
 }
 
-func newInMemoryStore() *inMemoryStore {
-	return &inMemoryStore{
+func (s *InMemoryStore) Repos() port.Repos { return s.repos() }
+
+func (s *InMemoryStore) SeedWallet(w *wallet.Wallet) { s.wallets[w.ID()] = cloneWallet(w) }
+
+func (s *InMemoryStore) LedgerEntries() []wallet.LedgerEntry {
+	return append([]wallet.LedgerEntry(nil), s.ledger...)
+}
+
+func (s *InMemoryStore) Events() []event.Envelope { return append([]event.Envelope(nil), s.events...) }
+
+func (s *InMemoryStore) EventTypes() []string {
+	var out []string
+	for _, ev := range s.events {
+		out = append(out, ev.EventType)
+	}
+	return out
+}
+
+func NewInMemoryStore() *InMemoryStore {
+	return &InMemoryStore{
 		wallets: map[uuid.UUID]*wallet.Wallet{},
 		txs:     map[uuid.UUID]*wager.Transaction{},
 		inbox:   map[string]string{},
 	}
 }
 
-func (s *inMemoryStore) repos() port.Repos {
+func (s *InMemoryStore) repos() port.Repos {
 	return port.Repos{
 		Wallets:      inMemoryWallets{s},
 		Transactions: inMemoryTransactions{s},
@@ -40,17 +58,17 @@ func (s *inMemoryStore) repos() port.Repos {
 	}
 }
 
-func (s *inMemoryStore) Do(ctx context.Context, fn func(context.Context, port.Repos) error) error {
+func (s *InMemoryStore) Do(ctx context.Context, fn func(context.Context, port.Repos) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return fn(ctx, s.repos())
 }
 
-func (s *inMemoryStore) DoSnapshot(ctx context.Context, fn func(context.Context, port.Repos) error) error {
+func (s *InMemoryStore) DoSnapshot(ctx context.Context, fn func(context.Context, port.Repos) error) error {
 	return s.Do(ctx, fn)
 }
 
-func (s *inMemoryStore) walletByID(id uuid.UUID) (*wallet.Wallet, error) {
+func (s *InMemoryStore) walletByID(id uuid.UUID) (*wallet.Wallet, error) {
 	w, ok := s.wallets[id]
 	if !ok {
 		return nil, port.ErrNotFound
@@ -58,7 +76,7 @@ func (s *inMemoryStore) walletByID(id uuid.UUID) (*wallet.Wallet, error) {
 	return cloneWallet(w), nil
 }
 
-func (s *inMemoryStore) transactionByID(id uuid.UUID) (*wager.Transaction, error) {
+func (s *InMemoryStore) transactionByID(id uuid.UUID) (*wager.Transaction, error) {
 	t, ok := s.txs[id]
 	if !ok {
 		return nil, port.ErrNotFound
@@ -66,7 +84,7 @@ func (s *inMemoryStore) transactionByID(id uuid.UUID) (*wager.Transaction, error
 	return cloneTransaction(t), nil
 }
 
-func (s *inMemoryStore) findTransaction(match func(*wager.Transaction) bool) (*wager.Transaction, error) {
+func (s *InMemoryStore) findTransaction(match func(*wager.Transaction) bool) (*wager.Transaction, error) {
 	for _, t := range s.txs {
 		if match(t) {
 			return cloneTransaction(t), nil
@@ -85,9 +103,14 @@ func cloneTransaction(t *wager.Transaction) *wager.Transaction {
 	return c
 }
 
-type inMemoryWallets struct{ *inMemoryStore }
+type inMemoryWallets struct{ *InMemoryStore }
 
 func (s inMemoryWallets) Insert(_ context.Context, w *wallet.Wallet) error {
+	for _, other := range s.wallets {
+		if other.PlayerID() == w.PlayerID() && other.Currency() == w.Currency() {
+			return &port.ConflictError{Constraint: "wallets_player_currency_unique"}
+		}
+	}
 	s.wallets[w.ID()] = cloneWallet(w)
 	return nil
 }
@@ -108,7 +131,7 @@ func (s inMemoryWallets) Update(_ context.Context, w *wallet.Wallet, expectedVer
 	return nil
 }
 
-type inMemoryTransactions struct{ *inMemoryStore }
+type inMemoryTransactions struct{ *InMemoryStore }
 
 func (s inMemoryTransactions) Insert(_ context.Context, t *wager.Transaction) error {
 	if e := t.External(); e != nil {
@@ -174,7 +197,7 @@ func (s inMemoryTransactions) ClaimPendingReferences(_ context.Context, now time
 	return due, nil
 }
 
-type inMemoryLedger struct{ *inMemoryStore }
+type inMemoryLedger struct{ *InMemoryStore }
 
 func (s inMemoryLedger) Insert(_ context.Context, e wallet.LedgerEntry) error {
 	s.ledger = append(s.ledger, e)
@@ -202,7 +225,7 @@ func (s inMemoryLedger) Sum(_ context.Context, walletID uuid.UUID) (int64, int, 
 	return net, count, nil
 }
 
-type inMemoryOutbox struct{ *inMemoryStore }
+type inMemoryOutbox struct{ *InMemoryStore }
 
 func (s inMemoryOutbox) Add(_ context.Context, events ...event.Envelope) error {
 	s.events = append(s.events, events...)
@@ -221,7 +244,7 @@ func (s inMemoryOutbox) Reschedule(context.Context, uuid.UUID, string, time.Time
 
 func (s inMemoryOutbox) Lag(context.Context) (time.Duration, error) { return 0, nil }
 
-type inMemoryInbox struct{ *inMemoryStore }
+type inMemoryInbox struct{ *InMemoryStore }
 
 func (s inMemoryInbox) Register(_ context.Context, m port.InboxMessage, _ time.Time) (port.InboxState, error) {
 	key := m.ConsumerName + "/" + m.MessageID
@@ -237,9 +260,9 @@ func (s inMemoryInbox) Register(_ context.Context, m port.InboxMessage, _ time.T
 
 func (s inMemoryInbox) Complete(context.Context, port.InboxMessage, time.Time) error { return nil }
 
-type steppingClock struct{ now time.Time }
+type SteppingClock struct{ Time time.Time }
 
-func (c *steppingClock) Now() time.Time {
-	c.now = c.now.Add(time.Millisecond)
-	return c.now
+func (c *SteppingClock) Now() time.Time {
+	c.Time = c.Time.Add(time.Millisecond)
+	return c.Time
 }
