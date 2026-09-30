@@ -165,7 +165,11 @@ $ make play
 [provider-a | carteira 01a0f3c1 | 10.00 BRL] > as provider-b          # troca o token: provider-b não vê as transações de A
 ```
 
-`help` (ou `comandos`, `cmds`, `ações`) lista tudo. Valores aceitam inteiro: `bet 25` vira `25.00`. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
+Além disso: `redeliver <id>` reenvia o mesmo envelope SQS e mostra a inbox ignorando;
+`poison` manda uma mensagem inválida e a acompanha até a DLQ; `dlq` e `events` leem as
+filas de saída; `flood [n]` dispara GETs até tomar 429; `auth` roda a bateria de chamadas
+sem token, com token inválido, provedor errado e role errada; `health` e `metrics`
+consultam cada instância. `help` (ou `comandos`, `cmds`, `ações`) lista tudo. Valores aceitam inteiro: `bet 25` vira `25.00`. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
 e a resolução quando a aposta chega. Também dá para rodar direto: `go run ./cmd/playground`
 (variáveis `API_URL`, `KEYCLOAK_URL`, `AWS_ENDPOINT_URL` para apontar para outro lugar).
 

@@ -12,6 +12,7 @@ import (
 type operation struct {
 	ext, kind, amount, ref string
 	key                    string
+	messageID, sqsBody     string
 }
 
 type session struct {
@@ -75,6 +76,8 @@ func (s *session) run(args []string) error {
 		"bet": s.bet, "win": s.win, "loss": s.loss, "refund": s.refund, "rollback": s.rollback,
 		"replay": s.replay, "conflict": s.conflict, "race": s.race, "race2": s.race2,
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
+		"events": s.events, "dlq": s.dlq, "poison": s.poison, "redeliver": s.redeliver,
+		"flood": s.flood, "auth": s.auth, "health": s.health, "metrics": s.metrics,
 	}
 	h, ok := handlers[cmd]
 	if !ok {
@@ -100,12 +103,24 @@ operações (token do provedor atual)
   rollback <id>           ROLLBACK de BET, WIN ou REFUND
   replay <id>             reenvia exatamente o mesmo payload e chave -> idempotentReplay
   conflict <id> <valor>   mesma chave, valor diferente -> 409
-  sqs <kind> <valor> [ref] manda pela fila em vez de HTTP (mesma idempotência)
   tx <id>                 consulta a transação pelo externalTransactionId
+
+fila (LocalStack)
+  sqs <kind> <valor> [ref] manda pela fila em vez de HTTP (mesma idempotência)
+  redeliver [id]          reenvia o mesmo envelope (mesmo messageId; padrão o último sqs) -> inbox ignora, saldo não muda
+  poison                  manda uma mensagem inválida e mostra ela chegando na DLQ
+  dlq                     lê (e remove) o que está na DLQ
+  events [n]              lê (e remove) os eventos publicados pela outbox em wallet-events.fifo
 
 concorrência
   race <valor> [n]        n cópias da mesma aposta em paralelo (padrão 50) -> um débito
   race2 <a> <b>           duas apostas distintas ao mesmo tempo (ex.: 80 80 sobre 100)
+
+proteções e operação
+  auth                    bateria de chamadas sem token, token inválido, provedor errado, role errada
+  flood [n]               n GETs rápidos com o token atual até receber 429 (padrão 400)
+  health                  /health/live e /health/ready no nginx e em cada instância
+  metrics [filtro]        /metrics de cada instância, linhas contendo o filtro (padrão wager_)
 
 sessão
   ops                     operações enviadas nesta sessão

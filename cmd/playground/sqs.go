@@ -7,11 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
-
-	"github.com/pedroegerland/wager-service/internal/adapter/sqs"
 )
 
 func (s *session) viaSQS(args []string) error {
@@ -27,30 +23,23 @@ func (s *session) viaSQS(args []string) error {
 		op.ref = args[2]
 	}
 	op.key = s.providerForOps() + ":" + op.ext
-	s.remember(op)
 
 	data := s.submitBody(op)
 	data["idempotencyKey"] = op.key
-	messageID := "msg-" + uuid.NewString()[:8]
+	op.messageID = "msg-" + uuid.NewString()[:8]
 	body, _ := json.Marshal(map[string]any{
-		"messageId": messageID, "type": "WagerTransactionRequested",
+		"messageId": op.messageID, "type": "WagerTransactionRequested",
 		"occurredAt": time.Now().UTC().Format(time.RFC3339Nano), "data": data,
 	})
+	op.sqsBody = string(body)
+	s.remember(op)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	client, err := sqs.NewClient(ctx, sqs.Config{Endpoint: s.awsEndpoint, Region: "us-east-1", AccessKeyID: "test", SecretAccessKey: "test"})
-	if err != nil {
+	if err := s.sendToQueue(ctx, inboundQueuePath, op.sqsBody, s.walletID); err != nil {
 		return err
 	}
-	queue := s.awsEndpoint + "/000000000000/wager-transactions.fifo"
-	if _, err := client.SendMessage(ctx, &awssqs.SendMessageInput{
-		QueueUrl: aws.String(queue), MessageBody: aws.String(string(body)),
-		MessageGroupId: aws.String(s.walletID), MessageDeduplicationId: aws.String(uuid.NewString()),
-	}); err != nil {
-		return err
-	}
-	fmt.Printf("mensagem %s enviada (externalTransactionId %s). Aguardando o consumidor...\n", messageID, op.ext)
+	fmt.Printf("mensagem %s enviada (externalTransactionId %s). Aguardando o consumidor...\n", op.messageID, op.ext)
 
 	for i := 0; i < 40; i++ {
 		time.Sleep(500 * time.Millisecond)
