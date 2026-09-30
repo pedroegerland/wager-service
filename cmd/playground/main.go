@@ -44,7 +44,7 @@ func askOwner(in *bufio.Scanner, interactive bool, current string) string {
 		return current
 	}
 	for {
-		fmt.Printf("Seu nome (para listar e retomar suas carteiras depois) [%s]: ", current)
+		fmt.Printf("Seu nome (cada pessoa tem uma carteira; vazio = %s, sem dono) [%s]: ", unknownOwner, current)
 		if !in.Scan() {
 			return current
 		}

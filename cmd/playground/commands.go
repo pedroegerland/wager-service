@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,8 +13,23 @@ import (
 
 func (s *session) open(args []string) error {
 	amount := "100.00"
-	if len(args) > 0 {
-		amount = normalizeAmount(args[0])
+	owner := s.owner
+	for _, a := range args {
+		if strings.EqualFold(a, unknownOwner) {
+			owner = unknownOwner
+			continue
+		}
+		amount = normalizeAmount(a)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if !isUnknown(owner) {
+		if existing, err := s.registeredWallets(ctx, owner); err != nil {
+			return err
+		} else if len(existing) > 0 {
+			return fmt.Errorf("%s já tem a carteira %s (saldo %s); retome com 'use %s', ou abra uma sem dono com 'open %s unknown'",
+				owner, existing[0].walletID, fmtCents(existing[0].balance), owner, strings.TrimSuffix(amount, ".00"))
+		}
 	}
 	s.playerID = uuid.NewString()
 	r, err := s.call("POST", "/wallets", "wallet-admin", map[string]any{
@@ -27,12 +43,12 @@ func (s *session) open(args []string) error {
 		s.walletID = r.str("id")
 		s.ops = map[string]operation{}
 		s.order = nil
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := s.registerWallet(ctx, uuid.MustParse(s.walletID)); err != nil {
-			fmt.Println(yellow("aviso: carteira aberta, mas não consegui registrar no seu nome: " + err.Error()))
+		if err := s.registerWallet(ctx, uuid.MustParse(s.walletID), owner); err != nil {
+			fmt.Println(yellow("aviso: carteira aberta, mas não consegui registrar o dono: " + err.Error()))
+		} else if isUnknown(owner) {
+			fmt.Println(yellow("carteira aberta sem dono; vincule depois com: apply " + s.walletID + " <nome>"))
 		} else {
-			fmt.Println(green(fmt.Sprintf("carteira registrada no nome de %s; retome depois com: use %s", s.owner, s.owner)))
+			fmt.Println(green(fmt.Sprintf("carteira registrada no nome de %s; retome depois com: use %s", owner, owner)))
 		}
 	}
 	return nil

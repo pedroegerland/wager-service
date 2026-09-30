@@ -191,10 +191,10 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 
 | Comando | Argumentos | O que faz | Exemplo |
 | --- | --- | --- | --- |
-| `open [valor]` | valor inicial, padrão `100.00` | abre carteira para um jogador novo (token `wallet-admin`) e a registra no seu nome | `open 1000` |
+| `open [valor] [unknown]` | valor inicial, padrão `100.00`; `unknown` abre sem dono | abre carteira para um jogador novo (token `wallet-admin`) e a registra no seu nome; cada pessoa tem uma só | `open 1000`, `open 100 unknown` |
 | `wallets [nome]` | nome opcional | lista as carteiras abertas pelo playground, mais recente primeiro, com saldo e versão | `wallets`, `wallets pedro` |
-| `use <id\|nome>` | `walletId` ou nome de quem abriu | retoma uma carteira existente; por nome pega a mais recente | `use pedro` |
-| `apply <id> [nome]` | `walletId`; nome padrão o seu | vincula uma carteira sem dono (aberta por `curl`, testes, outra ferramenta) a um nome; recusa se já tiver dono | `apply 01a0f49c-... pedro` |
+| `use <id\|nome>` | `walletId` ou nome do dono; `unknown` pega a última sem dono | retoma uma carteira existente | `use pedro` |
+| `apply <id> [nome]` | `walletId`; nome padrão o seu | vincula uma carteira sem dono (`unknown`, aberta por `curl`, testes etc.) a alguém que ainda não tem carteira | `apply 01a0f49c-... pedro` |
 | `wallet` | | saldo e versão da carteira atual | `wallet` |
 | `ledger` | | lançamentos da carteira, com saldo antes e depois | `ledger` |
 | `reconcile` | | recalcula o saldo pelo ledger e compara | `reconcile` |
@@ -236,7 +236,7 @@ rollback aposta-1          # 422 REFERENCE_ALREADY_REVERSED
 rollback aposta-x 5        # 202 PENDING_REFERENCE (a aposta ainda não existe)
 bet 5 aposta-x             # o worker resolve o rollback em seguida; confira com tx
 race 5 50                  # 1 processada, 49 replays
-open 100
+open 100 unknown           # segunda carteira, sem dono (cada pessoa tem uma só)
 race2 80 80                # uma PROCESSED, uma INSUFFICIENT_FUNDS, saldo 20.00
 sqs BET 10                 # pela fila
 redeliver                  # mesma mensagem de novo, nada muda
@@ -252,9 +252,11 @@ reconcile
 ```
 
 Ao abrir, o prompt pergunta se quer a saída com cores (`S`/`sim` ou `N`/`não`; Enter é sim)
-e o seu nome. Cada carteira aberta fica registrada nesse nome na tabela `playground_wallets`
-(migration `000002`, apoio do playground, fora do domínio), então se a sessão cair ou você
-voltar mais tarde, `use pedro` retoma a última carteira de pedro e `wallets` lista todas.
+e o seu nome (vazio vira `unknown`, que quer dizer sem dono). Cada carteira aberta fica
+registrada nesse nome na tabela `playground_wallets` (migrations `000002` e `000003`, apoio do
+playground, fora do domínio), então se a sessão cair ou você voltar mais tarde, `use pedro`
+retoma a carteira de pedro e `wallets` lista todas. Cada pessoa tem uma carteira só: um índice
+único em `lower(owner_name)` garante isso no banco, e `unknown` fica de fora dele.
 As operações de sessões anteriores não voltam para o `ops`; `refund`/`rollback` delas
 funcionam informando o valor. Sem terminal interativo o nome vem de `PLAYGROUND_USER`.
 Verde é sucesso, vermelho é falha, amarelo é dica. A pergunta é pulada quando a entrada vem

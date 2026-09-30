@@ -429,8 +429,10 @@ de autorização, health e métricas por instância. O README tem a referência 
 `make demo` sobe tudo de um checkout limpo e `make verify` roda todas as camadas de
 teste, incluindo a execução contra as três instâncias.
 
-A migration `000002` cria `playground_wallets`, que liga cada carteira aberta pelo
-playground ao nome de quem a abriu, para retomar uma sessão depois. É uma tabela de apoio
+As migrations `000002` e `000003` criam `playground_wallets`, que liga cada carteira aberta
+pelo playground ao nome de quem a abriu, para retomar uma sessão depois. Cada pessoa tem
+uma carteira (índice único em `lower(owner_name)`); `unknown` marca carteira sem dono e
+pode se repetir. É uma tabela de apoio
 da ferramenta: o domínio, os casos de uso e a API não a conhecem; só o `cmd/playground`
 lê e escreve nela, direto no Postgres.
 

@@ -47,7 +47,7 @@ func newSession() *session {
 		keycloakURL: envOr("KEYCLOAK_URL", "http://localhost:8180"),
 		awsEndpoint: envOr("AWS_ENDPOINT_URL", "http://localhost:4566"),
 		databaseURL: envOr("DATABASE_URL", "postgres://wager:wager@localhost:5432/wager?sslmode=disable"),
-		owner:       envOr("PLAYGROUND_USER", "anon"),
+		owner:       envOr("PLAYGROUND_USER", unknownOwner),
 		provider:    "provider-a",
 		ops:         map[string]operation{},
 		tokens:      map[string]cachedToken{},
@@ -97,10 +97,11 @@ func (s *session) help([]string) error {
 	fmt.Print(`valores: xx.yy; um inteiro vale como reais (25 -> 25.00, 25.5 -> 25.50)
 
 carteira (token wallet-admin)
-  open [valor]            abre carteira nova para um jogador novo (padrão 100.00) e a registra no seu nome
+  open [valor] [unknown]  abre carteira nova (padrão 100.00) no seu nome; cada pessoa tem uma só.
+                          'open <valor> unknown' abre uma sem dono, que pode ser vinculada depois com apply
   wallets [nome]          lista as carteiras abertas pelo playground (todas, ou só as de um nome)
-  use <id|nome>           retoma uma carteira existente pelo walletId ou pelo nome de quem abriu
-  apply <id> [nome]       vincula uma carteira sem dono (aberta por curl, testes etc.) a um nome; padrão o seu
+  use <id|nome>           retoma uma carteira pelo walletId ou pelo nome do dono ('use unknown': a última sem dono)
+  apply <id> [nome]       vincula uma carteira sem dono a alguém que ainda não tem carteira; nome padrão o seu
   wallet                  mostra saldo e versão
   ledger                  lista os lançamentos
   reconcile               recalcula o saldo pelo ledger
