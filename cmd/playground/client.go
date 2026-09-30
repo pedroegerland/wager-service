@@ -91,14 +91,14 @@ func (s *session) call(method, path, client string, body any, headers map[string
 
 func (s *session) show(r reply) {
 	if r.status == 409 && (r.str("code") == "IDEMPOTENCY_KEY_CONFLICT" || r.str("code") == "EXTERNAL_TRANSACTION_ID_REUSED") {
-		fmt.Println("esse externalTransactionId já foi usado por este provedor (talvez em outra sessão ou carteira). Use outro id, ou omita o id para o playground gerar um.")
+		fmt.Println(yellow("esse externalTransactionId já foi usado por este provedor (talvez em outra sessão ou carteira). Use outro id, ou omita o id para o playground gerar um."))
 	}
 	pretty := r.raw
 	var buf bytes.Buffer
 	if json.Indent(&buf, []byte(r.raw), "  ", "  ") == nil {
 		pretty = buf.String()
 	}
-	fmt.Printf("HTTP %d\n  %s\n", r.status, pretty)
+	fmt.Printf("%s\n  %s\n", statusLine(r.status), pretty)
 	if b := r.amount("balance"); b != "" {
 		s.balance = b
 	}

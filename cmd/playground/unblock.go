@@ -64,17 +64,17 @@ func (s *session) unblock(args []string) error {
 		req.Header.Set("Authorization", "Bearer "+admin)
 		resp, err := httpClient.Do(req)
 		if err != nil {
-			fmt.Printf("  %-28s erro: %v\n", base, err)
+			fmt.Printf("  %-28s %s\n", base, red("erro: "+err.Error()))
 			continue
 		}
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		fmt.Printf("  %-28s HTTP %d %s\n", base, resp.StatusCode, strings.TrimSpace(string(body)))
+		fmt.Printf("  %-28s %s %s\n", base, statusLine(resp.StatusCode), strings.TrimSpace(string(body)))
 	}
 	if client == "all" {
-		fmt.Println("todos os buckets de rate limit foram zerados em cada instância")
+		fmt.Println(green("todos os buckets de rate limit foram zerados em cada instância"))
 		return nil
 	}
-	fmt.Printf("bucket de %s zerado em cada instância; a próxima chamada passa sem esperar o refill\n", client)
+	fmt.Println(green(fmt.Sprintf("bucket de %s zerado em cada instância; a próxima chamada passa sem esperar o refill", client)))
 	return nil
 }

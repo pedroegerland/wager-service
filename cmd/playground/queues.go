@@ -173,12 +173,12 @@ func (s *session) poison([]string) error {
 		}
 		for _, it := range items {
 			if strings.Contains(fmt.Sprint(it["_raw"]), marker) || it["messageId"] == marker {
-				fmt.Printf("chegou na DLQ com motivo: %v\n", it["_reason"])
+				fmt.Println(green(fmt.Sprintf("chegou na DLQ com motivo: %v", it["_reason"])))
 				return nil
 			}
 		}
 	}
-	fmt.Println("não apareceu na DLQ em 30s; confira: dlq")
+	fmt.Println(red("não apareceu na DLQ em 30s; confira: dlq"))
 	return nil
 }
 
@@ -202,7 +202,7 @@ func (s *session) redeliver(args []string) error {
 	if err := s.sendToQueue(ctx, inboundQueuePath, op.sqsBody, s.walletID); err != nil {
 		return err
 	}
-	fmt.Printf("mesmo envelope (messageId %s) enviado de novo; a inbox deve reconhecer e nada muda no saldo\n", op.messageID)
+	fmt.Println(green(fmt.Sprintf("mesmo envelope (messageId %s) enviado de novo; a inbox deve reconhecer e nada muda no saldo", op.messageID)))
 	time.Sleep(3 * time.Second)
 	return s.wallet(nil)
 }

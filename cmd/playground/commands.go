@@ -50,7 +50,7 @@ func (s *session) ledger([]string) error {
 		return err
 	}
 	entries, _ := r.body["entries"].([]any)
-	fmt.Printf("HTTP %d, %d lançamentos\n", r.status, len(entries))
+	fmt.Printf("%s, %d lançamentos\n", statusLine(r.status), len(entries))
 	for _, e := range entries {
 		m := e.(map[string]any)
 		amt := m["money"].(map[string]any)["amount"]
@@ -210,7 +210,7 @@ func (s *session) race(args []string) error {
 
 	counts := map[string]int{}
 	for _, r := range results {
-		label := fmt.Sprintf("HTTP %d %s", r.status, r.str("status"))
+		label := fmt.Sprintf("%s %s", statusLine(r.status), r.str("status"))
 		if replay, _ := r.body["idempotentReplay"].(bool); replay {
 			label += " replay"
 		}
@@ -245,7 +245,7 @@ func (s *session) race2(args []string) error {
 		op operation
 		r  reply
 	}{{a, ra}, {b, rb}} {
-		fmt.Printf("%s %s -> HTTP %d %s %s\n", pair.op.ext, pair.op.amount, pair.r.status, pair.r.str("status"), pair.r.str("failureCode"))
+		fmt.Printf("%s %s -> %s %s %s\n", pair.op.ext, pair.op.amount, statusLine(pair.r.status), pair.r.str("status"), pair.r.str("failureCode"))
 	}
 	return s.wallet(nil)
 }

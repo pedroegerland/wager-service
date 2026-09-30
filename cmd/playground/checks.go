@@ -58,12 +58,13 @@ func (s *session) flood(args []string) error {
 	}
 	sort.Ints(codes)
 	for _, c := range codes {
-		fmt.Printf("  %4d x HTTP %d\n", counts[c], c)
+		fmt.Printf("  %4d x %s\n", counts[c], statusLine(c))
 	}
 	if counts[429] > 0 {
-		fmt.Printf("rate limit atingido (Retry-After: %ss). O limite é por instância: RATE_LIMIT_RPS=50, burst 100, vezes 3 instâncias atrás do nginx. Para liberar agora: unblock\n", retryAfter)
+		fmt.Println(green(fmt.Sprintf("rate limit atingido (Retry-After: %ss). O limite é por instância: RATE_LIMIT_RPS=50, burst 100, vezes 3 instâncias atrás do nginx.", retryAfter)))
+		fmt.Println(yellow("para liberar agora: unblock"))
 	} else {
-		fmt.Println("nenhum 429: aumente n (o burst é 100 por instância, e o nginx espalha entre 3).")
+		fmt.Println(red("nenhum 429: aumente n (o burst é 100 por instância, e o nginx espalha entre 3)."))
 	}
 	return nil
 }
@@ -113,11 +114,8 @@ func (s *session) auth([]string) error {
 		}
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
-		mark := "ok "
-		if resp.StatusCode != c.expect {
-			mark = "!! "
-		}
-		fmt.Printf("  %s HTTP %d (esperado %d)  %s\n", mark, resp.StatusCode, c.expect, c.name)
+		ok := resp.StatusCode == c.expect
+		fmt.Printf("  %s (esperado %d)  %s\n", okOrFail(ok, fmt.Sprintf("%s HTTP %d", map[bool]string{true: "ok", false: "!!"}[ok], resp.StatusCode)), c.expect, c.name)
 	}
 	return nil
 }
@@ -144,12 +142,12 @@ func (s *session) health([]string) error {
 		for _, path := range []string{"/health/live", "/health/ready"} {
 			resp, err := httpClient.Get(base + path)
 			if err != nil {
-				fmt.Printf("  %-28s %-14s erro: %v\n", base, path, err)
+				fmt.Printf("  %-28s %-14s %s\n", base, path, red("erro: "+err.Error()))
 				continue
 			}
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			fmt.Printf("  %-28s %-14s HTTP %d %s\n", base, path, resp.StatusCode, strings.TrimSpace(string(body)))
+			fmt.Printf("  %-28s %-14s %s %s\n", base, path, statusLine(resp.StatusCode), strings.TrimSpace(string(body)))
 		}
 	}
 	return nil
@@ -163,12 +161,12 @@ func (s *session) metrics(args []string) error {
 	for _, base := range s.instanceURLs() {
 		resp, err := httpClient.Get(base + "/metrics")
 		if err != nil {
-			fmt.Printf("%s: %v\n", base, err)
+			fmt.Println(red(fmt.Sprintf("%s: %v", base, err)))
 			continue
 		}
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		fmt.Println(base)
+		fmt.Println(green(base))
 		for _, line := range strings.Split(string(body), "\n") {
 			if strings.HasPrefix(line, "#") || !strings.Contains(line, filter) {
 				continue

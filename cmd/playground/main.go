@@ -20,11 +20,11 @@ func main() {
 	fmt.Println("wager-service playground")
 	fmt.Printf("api=%s keycloak=%s sqs=%s\n", s.apiURL, s.keycloakURL, s.awsEndpoint)
 	if err := s.checkAPI(); err != nil {
-		fmt.Printf("aviso: a api não respondeu em %s (%v). Suba com 'make play' ou 'make demo'.\n", s.apiURL, err)
+		fmt.Println(red(fmt.Sprintf("aviso: a api não respondeu em %s (%v). Suba com 'make play' ou 'make demo'.", s.apiURL, err)))
 	}
 	fmt.Println()
 	_ = s.help(nil)
-	fmt.Println("Comece com 'open'. 'help' (ou comandos, cmds, ações) repete esta lista, 'quit' sai.")
+	fmt.Println(yellow("Comece com 'open'. 'help' (ou comandos, cmds, ações) repete esta lista, 'quit' sai."))
 	fmt.Println()
 
 	in := bufio.NewScanner(os.Stdin)
@@ -43,10 +43,11 @@ func main() {
 		}
 		fields := strings.Fields(line)
 		if err := s.run(fields); err != nil {
-			fmt.Println("erro:", err)
+			fmt.Println(red("erro: " + err.Error()))
 		}
 		if !isHelp(fields[0]) {
-			fmt.Println("quer ver os comandos? digite help (ou comandos, cmds, ações)")
+			fmt.Println()
+			fmt.Println(yellow("quer ver os comandos? digite help (ou comandos, cmds, ações)"))
 		}
 		fmt.Println()
 	}

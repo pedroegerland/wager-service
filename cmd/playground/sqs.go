@@ -56,6 +56,6 @@ func (s *session) viaSQS(args []string) error {
 			return s.wallet(nil)
 		}
 	}
-	fmt.Println("ainda não processada; consulte depois com: tx", op.ext)
+	fmt.Println(red("ainda não processada; consulte depois com: tx " + op.ext))
 	return nil
 }
