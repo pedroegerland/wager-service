@@ -43,6 +43,9 @@ func NewRouter(cfg Config, d Deps) http.Handler {
 	mux.Handle("GET /wallets/{walletId}/ledger", authed(auth.RoleInternal, h.getLedger))
 	mux.Handle("POST /wallets/{walletId}/reconciliation", authed(auth.RoleInternal, h.reconcile))
 
+	mux.Handle("DELETE /rate-limits", applyMiddlewares(h.resetAllRateLimits(limiter), requireBearerToken(d.Verifier), requireRole(auth.RoleInternal)))
+	mux.Handle("DELETE /rate-limits/{subject}", applyMiddlewares(h.resetRateLimit(limiter), requireBearerToken(d.Verifier), requireRole(auth.RoleInternal)))
+
 	mux.Handle("POST /wagering/transactions", anyRole(h.submitOperation))
 	mux.Handle("GET /wagering/transactions/{transactionId}", anyRole(h.getTransaction))
 	mux.Handle("GET /providers/{providerId}/wagering/transactions/{externalTransactionId}", anyRole(h.getProviderTransaction))

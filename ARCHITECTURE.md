@@ -330,7 +330,7 @@ Modelo de permissão:
 
 | Rota | Quem |
 | --- | --- |
-| `POST /wallets`, `GET /wallets/*`, `POST /wallets/*/reconciliation` | `internal` |
+| `POST /wallets`, `GET /wallets/*`, `POST /wallets/*/reconciliation`, `DELETE /rate-limits[/{sub}]` | `internal` |
 | `POST /wagering/transactions` | `provider` cujo `provider_id` == `providerId` do corpo, ou `internal` |
 | `GET /providers/{p}/wagering/transactions/{ext}` | `provider` com `provider_id == p`, ou `internal` |
 | `GET /wagering/transactions/{id}` | `internal`; `provider` só se a transação for dele (senão 404, para não revelar ids) |
@@ -355,6 +355,13 @@ do nginx) quando não. `RATE_LIMIT_RPS`/`RATE_LIMIT_BURST`, resposta 429 com
 `Retry-After`, buckets ociosos são varridos a cada minuto. É **por instância** — com
 três instâncias o limite efetivo é ~3x. Um limite global precisaria de Redis ou
 similar e não me pareceu justificado aqui.
+
+Um chamador bloqueado volta sozinho conforme o bucket enche, mas um provedor legítimo
+que tomou 429 por um pico não deveria depender disso. `DELETE /rate-limits/{sub}` zera
+o bucket de um chamador e `DELETE /rate-limits` zera todos, na instância que atendeu a
+chamada. As duas rotas exigem `internal` e ficam fora do limitador, para o próprio
+administrador não se trancar. Como o estado é por instância, o reset também é; o
+playground (`unblock`) repete a chamada nas três.
 
 ## Uso do Fx
 

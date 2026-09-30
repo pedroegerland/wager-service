@@ -348,6 +348,16 @@ func TestRateLimit(t *testing.T) {
 	if !got429 {
 		t.Error("expected a 429 after the burst")
 	}
+	sub := tokenSubject(t, token(t, "provider-a"))
+	if r := httpRequest(t, base, "DELETE", "/rate-limits/"+sub, token(t, "wallet-admin"), nil, nil); r.Status != 200 || !r.bool("reset") {
+		t.Errorf("reset: %d %s", r.Status, r.Raw)
+	}
+	if r := httpRequest(t, base, "GET", "/wagering/transactions/"+uuid.NewString(), token(t, "provider-a"), nil, nil); r.Status == 429 {
+		t.Error("still throttled after reset")
+	}
+	if r := httpRequest(t, base, "DELETE", "/rate-limits", token(t, "provider-a"), nil, nil); r.Status != 403 {
+		t.Errorf("provider resetting limits: %d", r.Status)
+	}
 
 	if r := httpRequest(t, base, "GET", "/wagering/transactions/"+uuid.NewString(), token(t, "provider-b"), nil, nil); r.Status == 429 {
 		t.Error("provider-b should not be throttled by provider-a")

@@ -77,7 +77,7 @@ func (s *session) run(args []string) error {
 		"replay": s.replay, "conflict": s.conflict, "race": s.race, "race2": s.race2,
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
 		"events": s.events, "dlq": s.dlq, "poison": s.poison, "redeliver": s.redeliver,
-		"flood": s.flood, "auth": s.auth, "health": s.health, "metrics": s.metrics,
+		"flood": s.flood, "unblock": s.unblock, "auth": s.auth, "health": s.health, "metrics": s.metrics,
 	}
 	h, ok := handlers[cmd]
 	if !ok {
@@ -122,6 +122,8 @@ concorrência
 proteções e operação
   auth                    bateria de chamadas sem token, token inválido, provedor errado, role errada
   flood [n]               n GETs rápidos com o token atual até receber 429 (padrão 400)
+  unblock [client|all]    zera o rate limit do chamador (padrão o provedor atual) em cada instância
+                          via DELETE /rate-limits/{sub} com o token wallet-admin; 'all' zera todos
   health                  /health/live e /health/ready no nginx e em cada instância
   metrics [filtro]        /metrics de cada instância, linhas contendo o filtro (padrão wager_)
 

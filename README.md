@@ -143,6 +143,24 @@ awslocal sqs send-message --queue-url http://localhost:4566/000000000000/wager-t
 
 Métricas em `GET /metrics` (formato Prometheus) em cada instância.
 
+### Rate limit
+
+Cada chamador (o `sub` do token, ou o IP quando não há token) tem um token bucket por
+instância: `RATE_LIMIT_RPS` por segundo com `RATE_LIMIT_BURST` de folga. Estourou, a
+resposta é 429 com `Retry-After`. O bucket enche sozinho com o tempo; para liberar na hora,
+o serviço interno pode zerar:
+
+```sh
+ADMIN=$(scripts/token.sh wallet-admin)
+SUB=<claim sub do token bloqueado>            # o playground descobre com: unblock
+curl -X DELETE localhost:8081/rate-limits/$SUB -H "Authorization: Bearer $ADMIN"   # um chamador nesta instância
+curl -X DELETE localhost:8081/rate-limits      -H "Authorization: Bearer $ADMIN"   # todos os buckets desta instância
+```
+
+Como o limite é por instância, o reset também é: repita em `:8082` e `:8083`, ou use
+`unblock` no `make play`, que faz as três. Essas rotas exigem a role `internal` e não
+passam pelo limitador, para um administrador bloqueado conseguir se liberar.
+
 ### Teste você mesmo
 
 Com o ambiente no ar, `make play` abre um prompt que conversa com a API e com as filas.
@@ -176,6 +194,7 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 | `dlq` | | lê e remove o que está na DLQ, com o motivo | `dlq` |
 | `events [n]` | n padrão 50 | lê e remove eventos de `wallet-events.fifo`; `*` marca a carteira atual | `events 20` |
 | `flood [n]` | n padrão 400 | n GETs rápidos com o token atual; espera 429 com `Retry-After` | `flood 500` |
+| `unblock [client\|all]` | `provider-a`, `provider-b`, `wallet-admin` ou `all`; padrão o provedor atual | zera o bucket do chamador em cada instância (`DELETE /rate-limits/{sub}` com `wallet-admin`); sem isso o 429 só some quando o bucket enche de novo | `unblock`, `unblock all` |
 | `auth` | | oito chamadas (sem token, inválido, provedor errado, role errada e as que devem passar) com o código esperado | `auth` |
 | `health` | | live e ready no nginx e nas três instâncias | `health` |
 | `metrics [filtro]` | filtro padrão `wager_` | linhas de `/metrics` de cada instância | `metrics outbox` |
@@ -202,6 +221,7 @@ redeliver                  # mesma mensagem de novo, nada muda
 poison                     # inválida vai para a DLQ
 events                     # o que a outbox publicou
 flood                      # 429 depois do burst
+unblock                    # libera o provedor sem esperar o refill
 auth                       # bateria de autorização
 as provider-b
 tx aposta-1                # 404: outro provedor não enxerga

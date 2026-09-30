@@ -61,7 +61,7 @@ func (s *session) flood(args []string) error {
 		fmt.Printf("  %4d x HTTP %d\n", counts[c], c)
 	}
 	if counts[429] > 0 {
-		fmt.Printf("rate limit atingido (Retry-After: %ss). O limite é por instância: RATE_LIMIT_RPS=50, burst 100, vezes 3 instâncias atrás do nginx.\n", retryAfter)
+		fmt.Printf("rate limit atingido (Retry-After: %ss). O limite é por instância: RATE_LIMIT_RPS=50, burst 100, vezes 3 instâncias atrás do nginx. Para liberar agora: unblock\n", retryAfter)
 	} else {
 		fmt.Println("nenhum 429: aumente n (o burst é 100 por instância, e o nginx espalha entre 3).")
 	}
@@ -123,11 +123,9 @@ func (s *session) auth([]string) error {
 }
 
 func (s *session) health([]string) error {
-	targets := []string{s.apiURL}
-	if strings.Contains(s.apiURL, ":8080") {
-		for _, p := range []string{"8081", "8082", "8083"} {
-			targets = append(targets, strings.Replace(s.apiURL, ":8080", ":"+p, 1))
-		}
+	targets := append([]string{s.apiURL}, s.instanceURLs()...)
+	if len(targets) == 2 && targets[0] == targets[1] {
+		targets = targets[:1]
 	}
 	for _, base := range targets {
 		for _, path := range []string{"/health/live", "/health/ready"} {
@@ -149,14 +147,7 @@ func (s *session) metrics(args []string) error {
 	if len(args) > 0 {
 		filter = args[0]
 	}
-	targets := []string{s.apiURL}
-	if strings.Contains(s.apiURL, ":8080") {
-		targets = nil
-		for _, p := range []string{"8081", "8082", "8083"} {
-			targets = append(targets, strings.Replace(s.apiURL, ":8080", ":"+p, 1))
-		}
-	}
-	for _, base := range targets {
+	for _, base := range s.instanceURLs() {
 		resp, err := httpClient.Get(base + "/metrics")
 		if err != nil {
 			fmt.Printf("%s: %v\n", base, err)

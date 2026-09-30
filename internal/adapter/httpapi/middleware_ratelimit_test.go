@@ -56,3 +56,26 @@ func TestRateLimiterSweep(t *testing.T) {
 		t.Errorf("expected buckets swept, got %d", len(l.buckets))
 	}
 }
+
+func TestRateLimiterReset(t *testing.T) {
+	l := NewRateLimiter(1, 1, time.Minute)
+	if ok, _ := l.allowRequest("sub:alice", time.Now()); !ok {
+		t.Fatal("first request should pass")
+	}
+	if ok, _ := l.allowRequest("sub:alice", time.Now()); ok {
+		t.Fatal("second request should be throttled")
+	}
+	if !l.Reset("alice") {
+		t.Error("reset should report the bucket existed")
+	}
+	if ok, _ := l.allowRequest("sub:alice", time.Now()); !ok {
+		t.Error("request after reset should pass")
+	}
+	if l.Reset("nobody") {
+		t.Error("unknown subject reports false")
+	}
+	l.allowRequest("sub:bob", time.Now())
+	if n := l.ResetAll(); n != 2 {
+		t.Errorf("reset all: %d", n)
+	}
+}

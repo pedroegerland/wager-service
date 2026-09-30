@@ -67,6 +67,22 @@ func (l *RateLimiter) RemoveIdleBuckets(now time.Time) {
 	}
 }
 
+func (l *RateLimiter) Reset(subject string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	_, ok := l.buckets["sub:"+subject]
+	delete(l.buckets, "sub:"+subject)
+	return ok
+}
+
+func (l *RateLimiter) ResetAll() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := len(l.buckets)
+	l.buckets = map[string]*bucket{}
+	return n
+}
+
 func (l *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := "ip:" + clientIPOf(r)

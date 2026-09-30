@@ -5,6 +5,7 @@ package integration
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -212,6 +213,21 @@ func assertReconciled(t testing.TB, walletID string) {
 	if r.Status != 200 || !r.bool("consistent") {
 		t.Errorf("reconciliation: %d %s", r.Status, r.Raw)
 	}
+}
+
+func tokenSubject(t testing.TB, tok string) string {
+	t.Helper()
+	parts := strings.Split(tok, ".")
+	if len(parts) != 3 {
+		t.Fatal("not a jwt")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	must(t, err)
+	var claims struct {
+		Sub string `json:"sub"`
+	}
+	must(t, json.Unmarshal(payload, &claims))
+	return claims.Sub
 }
 
 func shortID() string { return uuid.NewString()[:8] }

@@ -124,6 +124,9 @@ func TestRouterAuthorization(t *testing.T) {
 		{"internal may act for a provider", "POST", "/wagering/transactions", "admin", bet, 200},
 		{"owner may read", "GET", "/providers/provider-a/wagering/transactions/tx-1", "provider-a", nil, 200},
 		{"admin may read wallet", "GET", "/wallets/" + walletID, "admin", nil, 200},
+		{"provider cannot reset rate limits", "DELETE", "/rate-limits/anyone", "provider-a", nil, 403},
+		{"admin resets one subject", "DELETE", "/rate-limits/provider-a", "admin", nil, 200},
+		{"admin resets all", "DELETE", "/rate-limits", "admin", nil, 200},
 	}
 	for _, c := range cases {
 		r := do(t, h, c.method, c.path, c.tok, c.body, key)
