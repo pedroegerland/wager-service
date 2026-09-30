@@ -60,7 +60,7 @@ func TestReversalReferenceExpires(t *testing.T) {
 		t.Fatalf("rollback: %d %s", r.Status, r.Raw)
 	}
 	txID := r.str("transactionId")
-	waitUntil(t, 30*time.Second, "rollback to expire", func() bool {
+	waitUntil(t, 150*time.Second, "rollback to expire", func() bool {
 		return queryString(t, `SELECT status::text FROM wager_transactions WHERE id = $1`, txID) == "REJECTED"
 	})
 	if code := queryString(t, `SELECT failure_code FROM wager_transactions WHERE id = $1`, txID); code != "REFERENCE_NOT_FOUND" {

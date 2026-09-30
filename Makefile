@@ -2,7 +2,7 @@ export CGO_ENABLED=0
 GOFLAGS ?=
 
 .PHONY: build test test-race vet fmt lint up down logs migrate-up migrate-down migrate-version \
-        deps-up deps-down test-integration test-multi token clean
+        deps-up deps-down test-integration test-multi token demo verify clean
 
 build:
 	go build $(GOFLAGS) -o bin/wager-service ./cmd/wager-service
@@ -61,6 +61,14 @@ test-multi:
 
 token:
 	@scripts/token.sh $(or $(CLIENT),provider-a)
+
+## sobe tudo do zero e roda um fluxo de exemplo
+demo:
+	@scripts/local-up.sh
+
+## gofmt + vet + unitarios + integracao (precisa do ambiente no ar)
+verify:
+	@scripts/verify.sh
 
 clean:
 	rm -rf bin

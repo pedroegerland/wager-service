@@ -18,6 +18,14 @@ instância), 8180 (Keycloak), 5432 (Postgres), 4566 (LocalStack).
 
 ## Subindo tudo
 
+O caminho curto, que faz tudo e termina com um fluxo de exemplo:
+
+```sh
+make demo        # = scripts/local-up.sh
+```
+
+O mesmo na mão:
+
 ```sh
 cp .env.example .env      # valores locais, sem segredo real
 docker compose up --build -d
@@ -154,13 +162,24 @@ Os `failureCode` estão documentados em [ARCHITECTURE.md](ARCHITECTURE.md#códig
 
 ## Testes
 
+Tudo de uma vez, com o ambiente no ar:
+
+```sh
+make verify      # = scripts/verify.sh: gofmt, vet, unitários com -race, integração in-process e contra as 3 instâncias
+```
+
+Por partes:
+
 ```sh
 make test          # go test ./...          (unitários + validação do grafo Fx)
 make test-race     # go test -race ./...
 make vet           # go vet ./...
 ```
 
-Os unitários não precisam de nada rodando. Os de integração usam containers reais e
+Os unitários não precisam de nada rodando. Eles cobrem o domínio inteiro, o caso de uso
+e o roteador HTTP com um store em memória (`internal/app/port/porttest`), além dos
+helpers de cada adaptador (decodificação de mensagem SQS, tradução de erros do pgx,
+cursor do ledger, backoffs, config). Os de integração usam containers reais e
 ficam atrás da build tag `integration` para não quebrar o `go test ./...` numa máquina
 sem docker.
 

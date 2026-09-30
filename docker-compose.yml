@@ -1,6 +1,8 @@
 x-api: &api
   build: .
-  env_file: .env
+  env_file:
+    - path: .env
+      required: false
   depends_on:
     migrate:
       condition: service_completed_successfully
@@ -72,7 +74,9 @@ services:
   migrate:
     build: .
     entrypoint: ["migrate", "up"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       postgres:
         condition: service_healthy
