@@ -9,8 +9,11 @@ import (
 
 func main() {
 	s := newSession()
-	fmt.Println("wager-service playground. Digite 'help' para ver os comandos, 'quit' para sair.")
+	fmt.Println("wager-service playground")
 	fmt.Printf("api=%s keycloak=%s sqs=%s\n\n", s.apiURL, s.keycloakURL, s.awsEndpoint)
+	_ = s.help(nil)
+	fmt.Println("Comece com 'open'. 'help' repete esta lista, 'quit' sai.")
+	fmt.Println()
 
 	in := bufio.NewScanner(os.Stdin)
 	for {
