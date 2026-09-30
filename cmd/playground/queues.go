@@ -151,7 +151,7 @@ func (s *session) events(args []string) error {
 
 func idSuffix(id string) string {
 	if len(id) > 12 {
-		return "…" + id[len(id)-12:]
+		return ".." + id[len(id)-12:]
 	}
 	return id
 }
