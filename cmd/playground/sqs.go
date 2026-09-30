@@ -12,7 +12,11 @@ import (
 
 func (s *session) viaSQS(args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("uso: sqs <BET|WIN|LOSS|REFUND|ROLLBACK> <valor> [ref]")
+		return fmt.Errorf("uso: sqs <BET|WIN|LOSS|REFUND|ROLLBACK> <valor> [ref]; ref é o externalTransactionId referenciado (obrigatório em REFUND/ROLLBACK)")
+	}
+	kindArg := strings.ToUpper(args[0])
+	if (kindArg == "REFUND" || kindArg == "ROLLBACK") && len(args) < 3 {
+		return fmt.Errorf("%s precisa do ref: sqs %s <valor> <externalTransactionId da operação referenciada>", kindArg, kindArg)
 	}
 	if err := s.requireWallet(); err != nil {
 		return err

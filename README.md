@@ -93,6 +93,7 @@ quatro clients (`client_credentials`):
 | `provider-b` | `provider-b-secret` | `provider` (`provider_id=provider-b`) | idem, isolado de A |
 | `wallet-admin` | `wallet-admin-secret` | `internal` | carteiras, ledger, reconciliação, leitura de qualquer transação |
 | `outsider` | `outsider-secret` | nenhuma | testes negativos |
+| `short-lived` | `short-lived-secret` | `internal`, token de 1s | teste de token expirado |
 
 Pegar um token:
 
@@ -144,34 +145,72 @@ Métricas em `GET /metrics` (formato Prometheus) em cada instância.
 
 ### Teste você mesmo
 
-Com o ambiente no ar, `make play` abre um prompt que conversa com a API e com a fila.
-Ele pega os tokens no Keycloak sozinho, guarda a carteira e as operações da sessão, e
-tem atalhos para os cenários do enunciado:
+Com o ambiente no ar, `make play` abre um prompt que conversa com a API e com as filas.
+Ele pega os tokens no Keycloak sozinho e guarda a carteira e as operações da sessão, então
+dá para reproduzir cada cenário do desafio sem escrever `curl`. A lista de comandos aparece
+na abertura e volta com `help`, `comandos`, `cmds` ou `ações`.
+
+Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.50`).
+`<id>` é sempre o `externalTransactionId`; quando você não informa um, o prompt gera
+(`bet-3f9a1c`) e imprime. `ops` lista os ids da sessão.
+
+| Comando | Argumentos | O que faz | Exemplo |
+| --- | --- | --- | --- |
+| `open [valor]` | valor inicial, padrão `100.00` | abre carteira para um jogador novo (token `wallet-admin`) | `open 1000` |
+| `wallet` | | saldo e versão da carteira atual | `wallet` |
+| `ledger` | | lançamentos da carteira, com saldo antes e depois | `ledger` |
+| `reconcile` | | recalcula o saldo pelo ledger e compara | `reconcile` |
+| `bet <valor> [id]` | valor > 0; id opcional | `BET`, débito | `bet 25 aposta-1` |
+| `win <valor> [id]` | valor > 0; id opcional | `WIN`, crédito | `win 10` |
+| `loss` | | `LOSS` com `0.00`; não move saldo nem versão | `loss` |
+| `refund <id> [valor]` | id de uma `BET`; valor só se a aposta não for desta sessão | `REFUND` devolvendo a aposta inteira | `refund aposta-1` |
+| `rollback <id> [valor]` | id de `BET`, `WIN` ou `REFUND` | `ROLLBACK`, movimento contrário ao original | `rollback aposta-1` |
+| `replay <id>` | id de operação desta sessão | reenvia payload e chave idênticos; espera `idempotentReplay: true` e o saldo da época | `replay aposta-1` |
+| `conflict <id> <valor>` | id desta sessão; valor diferente | mesma `Idempotency-Key` com payload diferente; espera 409 | `conflict aposta-1 26` |
+| `tx <id>` | qualquer id do provedor atual | consulta a transação: status, `failureCode`, `nextAttemptAt` | `tx aposta-1` |
+| `race <valor> [n]` | n padrão 50 | n cópias da mesma aposta em paralelo; espera 1 processada e n-1 replays | `race 5 50` |
+| `race2 <a> <b>` | dois valores | duas apostas distintas ao mesmo tempo; com 100 de saldo e 80/80 espera uma `INSUFFICIENT_FUNDS` | `race2 80 80` |
+| `sqs <kind> <valor> [ref]` | kind: `BET`, `WIN`, `LOSS` (valor 0), `REFUND`, `ROLLBACK`; ref: id referenciado, obrigatório em `REFUND`/`ROLLBACK`, opcional em `WIN` | publica em `wager-transactions.fifo` e espera o consumidor | `sqs BET 10`, `sqs REFUND 10 bet-3f9a1c` |
+| `redeliver [id]` | id enviado por `sqs`; padrão o último | reenvia o mesmo envelope e `messageId`; a inbox ignora e o saldo não muda | `redeliver` |
+| `poison` | | manda mensagem inválida e acompanha até a DLQ | `poison` |
+| `dlq` | | lê e remove o que está na DLQ, com o motivo | `dlq` |
+| `events [n]` | n padrão 50 | lê e remove eventos de `wallet-events.fifo`; `*` marca a carteira atual | `events 20` |
+| `flood [n]` | n padrão 400 | n GETs rápidos com o token atual; espera 429 com `Retry-After` | `flood 500` |
+| `auth` | | oito chamadas (sem token, inválido, provedor errado, role errada e as que devem passar) com o código esperado | `auth` |
+| `health` | | live e ready no nginx e nas três instâncias | `health` |
+| `metrics [filtro]` | filtro padrão `wager_` | linhas de `/metrics` de cada instância | `metrics outbox` |
+| `as <client>` | `provider-a`, `provider-b`, `wallet-admin` | troca o token das operações; `provider-b` não enxerga o que é de A | `as provider-b` |
+| `ops` | | operações desta sessão | `ops` |
+| `quit` | | sai | |
+
+Um roteiro que passa por tudo:
 
 ```
-$ make play
-[provider-a | sem carteira] > open 100.00
-[provider-a | carteira 01a0f3b7 | 100.00 BRL] > bet 25.00 aposta-1
-[provider-a | carteira 01a0f3b7 | 75.00 BRL] > replay aposta-1        # idempotentReplay: true, mesmo saldo
-[provider-a | carteira 01a0f3b7 | 75.00 BRL] > conflict aposta-1 26.00 # 409 IDEMPOTENCY_KEY_CONFLICT
-[provider-a | carteira 01a0f3b7 | 75.00 BRL] > refund aposta-1        # crédito de volta
-[provider-a | carteira 01a0f3b7 | 100.00 BRL] > rollback aposta-1     # 422 REFERENCE_ALREADY_REVERSED
-[provider-a | carteira 01a0f3b7 | 100.00 BRL] > race 5.00 50          # 50 cópias em paralelo: 1 processada, 49 replays
-[provider-a | carteira 01a0f3b7 | 95.00 BRL] > open 100.00
-[provider-a | carteira 01a0f3c1 | 100.00 BRL] > race2 80.00 80.00     # uma PROCESSED, uma INSUFFICIENT_FUNDS, saldo 20.00
-[provider-a | carteira 01a0f3c1 | 20.00 BRL] > sqs BET 10.00          # pela fila; mesma idempotência
-[provider-a | carteira 01a0f3c1 | 10.00 BRL] > ledger
-[provider-a | carteira 01a0f3c1 | 10.00 BRL] > reconcile
-[provider-a | carteira 01a0f3c1 | 10.00 BRL] > as provider-b          # troca o token: provider-b não vê as transações de A
+open 100
+bet 25 aposta-1
+replay aposta-1            # idempotentReplay: true, saldo 75.00
+conflict aposta-1 26       # 409 IDEMPOTENCY_KEY_CONFLICT
+refund aposta-1            # crédito, saldo 100.00
+rollback aposta-1          # 422 REFERENCE_ALREADY_REVERSED
+rollback aposta-x 5        # 202 PENDING_REFERENCE (a aposta ainda não existe)
+bet 5 aposta-x             # o worker resolve o rollback em seguida; confira com tx
+race 5 50                  # 1 processada, 49 replays
+open 100
+race2 80 80                # uma PROCESSED, uma INSUFFICIENT_FUNDS, saldo 20.00
+sqs BET 10                 # pela fila
+redeliver                  # mesma mensagem de novo, nada muda
+poison                     # inválida vai para a DLQ
+events                     # o que a outbox publicou
+flood                      # 429 depois do burst
+auth                       # bateria de autorização
+as provider-b
+tx aposta-1                # 404: outro provedor não enxerga
+ledger
+reconcile
 ```
 
-Além disso: `redeliver <id>` reenvia o mesmo envelope SQS e mostra a inbox ignorando;
-`poison` manda uma mensagem inválida e a acompanha até a DLQ; `dlq` e `events` leem as
-filas de saída; `flood [n]` dispara GETs até tomar 429; `auth` roda a bateria de chamadas
-sem token, com token inválido, provedor errado e role errada; `health` e `metrics`
-consultam cada instância. `help` (ou `comandos`, `cmds`, `ações`) lista tudo. Valores aceitam inteiro: `bet 25` vira `25.00`. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
-e a resolução quando a aposta chega. Também dá para rodar direto: `go run ./cmd/playground`
-(variáveis `API_URL`, `KEYCLOAK_URL`, `AWS_ENDPOINT_URL` para apontar para outro lugar).
+Também roda direto com `go run ./cmd/playground`; `API_URL`, `KEYCLOAK_URL` e
+`AWS_ENDPOINT_URL` apontam para outro ambiente.
 
 ### Respostas de erro
 
@@ -223,8 +262,8 @@ Nesse modo a suíte sobe a aplicação dentro do processo de teste (uma instânc
 aleatória) e bate nela por HTTP. Os cenários cobertos:
 
 - contratos HTTP, códigos de erro, paginação do ledger, reconciliação
-- autenticação real (token ausente, inválido, adulterado), isolamento entre provedores,
-  restrição das rotas internas, rate limit
+- autenticação real (token ausente, inválido, adulterado, expirado), isolamento entre
+  provedores, restrição das rotas internas, rate limit
 - 50 envios paralelos da mesma aposta -> um débito
 - duas apostas de 80.00 sobre 100.00 -> uma processada, uma rejeitada, saldo 20.00
 - carteiras distintas em paralelo
@@ -232,7 +271,11 @@ aleatória) e bate nela por HTTP. Os cenários cobertos:
 - consumidor SQS: processamento, reentrega do mesmo `messageId`, mensagem inválida na DLQ,
   corrida HTTP x SQS, e interrupção entre commit e `DeleteMessage`
   (`internal/adapter/sqs/operation_consumer_integration_test.go`)
-- outbox: dois publishers disputando, lease abandonado recuperado, evento chegando na fila
+- outbox: dois publishers disputando, lease abandonado recuperado, retry com backoff após
+  falha do broker, evento chegando na fila
+- atomicidade: erro no meio da unit of work não deixa carteira, transação nem ledger
+- reconciliação detectando divergência (resposta, métrica) sem alterar o saldo; `LOSS`
+  gerando só `WagerTransactionProcessed`
 - constraints do schema: ledger imutável, saldo negativo, unicidades; `migrate down/up`
 - ciclo de vida Fx: start/stop, falha de start com dependência errada, reinício
   preservando idempotência e pendências
@@ -279,5 +322,6 @@ deploy/                realm do Keycloak, init do LocalStack, nginx
 test/integration       suíte com containers reais
 ```
 
-Sem comentários no código de propósito: os nomes de arquivo, tipo e função dizem o que
-cada coisa faz, e o porquê está neste README e no `ARCHITECTURE.md`.
+O código não tem comentários: cada arquivo trata de um assunto e o nome de cada função diz
+o que ela faz. O porquê de cada decisão está no `ARCHITECTURE.md`; se algo aqui não bater
+com o código, o código está certo e o documento precisa de correção.

@@ -32,11 +32,11 @@ func transactionStatus(t testing.TB, provider, ext string) (string, bool) {
 
 func TestSQSProcessAndRedeliver(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{provider: "provider-a", round: "round-1", ext: "sqs-bet-" + uid(), kind: "BET", amount: "15.00", walletID: walletID, playerID: playerID}
-	msgID := "msg-" + uid()
+	bet := operation{provider: "provider-a", round: "round-1", ext: "sqs-bet-" + shortID(), kind: "BET", amount: "15.00", walletID: walletID, playerID: playerID}
+	msgID := "msg-" + shortID()
 	body := operationMessage(bet, msgID)
 
-	sendMessage(t, inboundQueue, body, walletID, "d-"+uid())
+	sendMessage(t, inboundQueue, body, walletID, "d-"+shortID())
 	waitUntil(t, 60*time.Second, "sqs bet to be processed", func() bool {
 		s, ok := transactionStatus(t, bet.provider, bet.ext)
 		return ok && s == "PROCESSED"
@@ -48,7 +48,7 @@ func TestSQSProcessAndRedeliver(t *testing.T) {
 		return queryInt64(t, `SELECT COUNT(*) FROM inbox_messages WHERE message_id = $1 AND completed_at IS NOT NULL`, msgID) == 1
 	})
 
-	sendMessage(t, inboundQueue, body, walletID, "d-"+uid())
+	sendMessage(t, inboundQueue, body, walletID, "d-"+shortID())
 
 	r := submitAPI(t, bet)
 	if r.Status != 200 || !r.bool("idempotentReplay") || r.money("balance") != "85.00" {
@@ -59,12 +59,12 @@ func TestSQSProcessAndRedeliver(t *testing.T) {
 		t.Errorf("redelivery moved money: balance %d ledger %d", storedBalance(t, walletID), ledgerCount(t, walletID))
 	}
 
-	bet2 := operation{provider: "provider-a", round: "round-1", ext: "sqs-bet-" + uid(), kind: "BET", amount: "5.00", walletID: walletID, playerID: playerID}
+	bet2 := operation{provider: "provider-a", round: "round-1", ext: "sqs-bet-" + shortID(), kind: "BET", amount: "5.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, bet2); r.Status != 200 {
 		t.Fatalf("http bet2: %s", r.Raw)
 	}
-	m2 := "msg-" + uid()
-	sendMessage(t, inboundQueue, operationMessage(bet2, m2), walletID, "d-"+uid())
+	m2 := "msg-" + shortID()
+	sendMessage(t, inboundQueue, operationMessage(bet2, m2), walletID, "d-"+shortID())
 	waitUntil(t, 20*time.Second, "sqs copy of http bet to be inboxed", func() bool {
 		return queryInt64(t, `SELECT COUNT(*) FROM inbox_messages WHERE message_id = $1 AND completed_at IS NOT NULL`, m2) == 1
 	})
@@ -75,9 +75,9 @@ func TestSQSProcessAndRedeliver(t *testing.T) {
 }
 
 func TestSQSInvalidGoesToDLQ(t *testing.T) {
-	marker := "broken-" + uid()
+	marker := "broken-" + shortID()
 	body := `{"messageId":"` + marker + `","type":"WagerTransactionRequested","data":{"kind":"BET","money":{"amount":"abc","currency":"BRL"}}}`
-	sendMessage(t, inboundQueue, body, "invalid-"+uid(), "d-"+uid())
+	sendMessage(t, inboundQueue, body, "invalid-"+shortID(), "d-"+shortID())
 
 	found := false
 	deadline := time.Now().Add(30 * time.Second)
@@ -107,9 +107,9 @@ func TestSQSInvalidGoesToDLQ(t *testing.T) {
 
 func TestSQSAndHTTPRace(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	a := operation{provider: "provider-a", round: "round-1", ext: "race-a-" + uid(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
-	b := operation{provider: "provider-a", round: "round-1", ext: "race-b-" + uid(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
-	sendMessage(t, inboundQueue, operationMessage(a, "msg-"+uid()), walletID, "d-"+uid())
+	a := operation{provider: "provider-a", round: "round-1", ext: "race-a-" + shortID(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
+	b := operation{provider: "provider-a", round: "round-1", ext: "race-b-" + shortID(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
+	sendMessage(t, inboundQueue, operationMessage(a, "msg-"+shortID()), walletID, "d-"+shortID())
 	rb := submitAPI(t, b)
 	waitUntil(t, 30*time.Second, "sqs bet to settle", func() bool {
 		s, ok := transactionStatus(t, a.provider, a.ext)

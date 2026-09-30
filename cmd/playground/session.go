@@ -107,6 +107,9 @@ operações (token do provedor atual)
 
 fila (LocalStack)
   sqs <kind> <valor> [ref] manda pela fila em vez de HTTP (mesma idempotência)
+                          kind: BET | WIN | LOSS (valor 0) | REFUND | ROLLBACK
+                          ref: externalTransactionId da operação referenciada; obrigatório em
+                               REFUND (aponta uma BET) e ROLLBACK (BET, WIN ou REFUND), opcional em WIN
   redeliver [id]          reenvia o mesmo envelope (mesmo messageId; padrão o último sqs) -> inbox ignora, saldo não muda
   poison                  manda uma mensagem inválida e mostra ela chegando na DLQ
   dlq                     lê (e remove) o que está na DLQ

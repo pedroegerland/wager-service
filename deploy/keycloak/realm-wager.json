@@ -5,8 +5,14 @@
   "sslRequired": "none",
   "roles": {
     "realm": [
-      { "name": "provider", "description": "Game provider: may submit and read its own transactions" },
-      { "name": "internal", "description": "Internal service: wallet operations and any provider's transactions" }
+      {
+        "name": "provider",
+        "description": "Game provider: may submit and read its own transactions"
+      },
+      {
+        "name": "internal",
+        "description": "Internal service: wallet operations and any provider's transactions"
+      }
     ]
   },
   "clients": [
@@ -40,7 +46,10 @@
           "name": "wager-api-audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
-          "config": { "included.custom.audience": "wager-api", "access.token.claim": "true" }
+          "config": {
+            "included.custom.audience": "wager-api",
+            "access.token.claim": "true"
+          }
         }
       ]
     },
@@ -74,7 +83,10 @@
           "name": "wager-api-audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
-          "config": { "included.custom.audience": "wager-api", "access.token.claim": "true" }
+          "config": {
+            "included.custom.audience": "wager-api",
+            "access.token.claim": "true"
+          }
         }
       ]
     },
@@ -95,7 +107,10 @@
           "name": "wager-api-audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
-          "config": { "included.custom.audience": "wager-api", "access.token.claim": "true" }
+          "config": {
+            "included.custom.audience": "wager-api",
+            "access.token.claim": "true"
+          }
         }
       ]
     },
@@ -116,15 +131,79 @@
           "name": "wager-api-audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
-          "config": { "included.custom.audience": "wager-api", "access.token.claim": "true" }
+          "config": {
+            "included.custom.audience": "wager-api",
+            "access.token.claim": "true"
+          }
         }
       ]
+    },
+    {
+      "clientId": "short-lived",
+      "name": "Internal client with 1s tokens (for the expiry test)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "short-lived-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "wager-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "wager-api",
+            "access.token.claim": "true"
+          }
+        }
+      ],
+      "attributes": {
+        "access.token.lifespan": "1"
+      }
     }
   ],
   "users": [
-    { "username": "service-account-provider-a", "enabled": true, "serviceAccountClientId": "provider-a", "realmRoles": ["provider"] },
-    { "username": "service-account-provider-b", "enabled": true, "serviceAccountClientId": "provider-b", "realmRoles": ["provider"] },
-    { "username": "service-account-wallet-admin", "enabled": true, "serviceAccountClientId": "wallet-admin", "realmRoles": ["internal"] },
-    { "username": "service-account-outsider", "enabled": true, "serviceAccountClientId": "outsider", "realmRoles": [] }
+    {
+      "username": "service-account-provider-a",
+      "enabled": true,
+      "serviceAccountClientId": "provider-a",
+      "realmRoles": [
+        "provider"
+      ]
+    },
+    {
+      "username": "service-account-provider-b",
+      "enabled": true,
+      "serviceAccountClientId": "provider-b",
+      "realmRoles": [
+        "provider"
+      ]
+    },
+    {
+      "username": "service-account-wallet-admin",
+      "enabled": true,
+      "serviceAccountClientId": "wallet-admin",
+      "realmRoles": [
+        "internal"
+      ]
+    },
+    {
+      "username": "service-account-outsider",
+      "enabled": true,
+      "serviceAccountClientId": "outsider",
+      "realmRoles": []
+    },
+    {
+      "username": "service-account-short-lived",
+      "enabled": true,
+      "serviceAccountClientId": "short-lived",
+      "realmRoles": [
+        "internal"
+      ]
+    }
   ]
 }

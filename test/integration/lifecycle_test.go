@@ -55,13 +55,13 @@ func TestRestartPreservesState(t *testing.T) {
 	baseA := fmt.Sprintf("http://127.0.0.1:%d", portA)
 
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "10.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "10.00", walletID: walletID, playerID: playerID}
 	first := submit(t, baseA, bet)
 	if first.Status != 200 {
 		t.Fatalf("bet on A: %s", first.Raw)
 	}
-	lateRef := "late-" + uid()
-	refund := operation{ext: "ref-" + uid(), kind: "REFUND", amount: "10.00", ref: lateRef, walletID: walletID, playerID: playerID}
+	lateRef := "late-" + shortID()
+	refund := operation{ext: "ref-" + shortID(), kind: "REFUND", amount: "10.00", ref: lateRef, walletID: walletID, playerID: playerID}
 	if r := submit(t, baseA, refund); r.Status != 202 {
 		t.Fatalf("refund on A: %s", r.Raw)
 	}

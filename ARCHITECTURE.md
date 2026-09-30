@@ -255,7 +255,7 @@ linhas commitadas, então nada é publicado antes do commit.
 `worker.OutboxPublisher` roda em todas as instâncias. Cada passada faz um `UPDATE ...
 WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED) RETURNING` que toma um lease de
 `OUTBOX_LEASE` sobre até `OUTBOX_BATCH_SIZE` linhas devidas e não travadas (ou com
-lease vencido). Publica uma a uma; sucesso → `published_at`, falha → `attempts++`,
+lease vencido, ou já travadas por ele mesmo). Publica uma a uma; sucesso → `published_at`, falha → `attempts++`,
 `next_attempt_at` com backoff (1s, 2s, ... até 1m), lease liberado. Um publisher que
 morre depois do `SendMessage` e antes de marcar deixa a linha com lease; quando vence,
 outra instância republica **com o mesmo `eventId`** e o FIFO descarta pela
@@ -409,6 +409,18 @@ Health: `/health/live` responde sempre; `/health/ready` faz `Ping` no Postgres e
 carteira e `SUM(CASE direction ...)` + `COUNT(*)` do ledger na mesma foto.
 `difference = stored - calculated`. Divergência vira log `ERROR` e incrementa a
 métrica. Nunca escreve.
+
+## Como verificar na mão
+
+Além da suíte automatizada há um REPL (`make play`, `cmd/playground`) que fala com a
+API e com as filas do ambiente local. Ele existe para o avaliador reproduzir os cenários
+sem escrever `curl`: replay e conflito de chave, 50 cópias em paralelo, duas apostas
+disputando o saldo, reversão antes da referência, envio pela fila e reentrega do mesmo
+`messageId`, mensagem inválida indo para a DLQ, eventos publicados, rate limit, bateria
+de autorização, health e métricas por instância. O README tem a referência completa.
+
+`make demo` sobe tudo de um checkout limpo e `make verify` roda todas as camadas de
+teste, incluindo a execução contra as três instâncias.
 
 ## Limitações e o que ficou de fora
 

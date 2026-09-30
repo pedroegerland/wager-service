@@ -387,3 +387,72 @@ func TestInboxDedup(t *testing.T) {
 		t.Errorf("http after sqs: %+v %s", r, e.balance(t))
 	}
 }
+
+func TestWinWithReference(t *testing.T) {
+	e := newTestEnv(t, "100.00")
+	ctx := context.Background()
+	must := func(c Operation) Result {
+		t.Helper()
+		r, err := e.proc.Process(ctx, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+
+	r := must(e.op(wager.KindWin, "win-early", "10.00", "bet-1"))
+	if r.Status != wager.StatusPendingReference {
+		t.Errorf("win before its bet should wait: %+v", r)
+	}
+
+	must(e.op(wager.KindBet, "bet-1", "30.00", ""))
+	r = must(e.op(wager.KindWin, "win-1", "10.00", "bet-1"))
+	if r.Status != wager.StatusProcessed || r.Balance.String() != "80.00" {
+		t.Errorf("win with bet reference: %+v", r)
+	}
+
+	r = must(e.op(wager.KindWin, "win-2", "10.00", "win-1"))
+	if r.FailureCode != wager.CodeReferenceKindNotAllowed {
+		t.Errorf("win referencing a win: %+v", r)
+	}
+
+	c := e.op(wager.KindWin, "win-3", "10.00", "bet-1")
+	c.RoundID = "round-2"
+	r = must(c)
+	if r.FailureCode != wager.CodeReferenceMismatch {
+		t.Errorf("win from another round: %+v", r)
+	}
+
+	e.proc.clock = &porttest.SteppingClock{Time: t0.Add(time.Minute)}
+	if did, err := e.proc.RetryOnePendingReference(ctx); err != nil || !did {
+		t.Fatalf("retry: %v %v", did, err)
+	}
+	if e.balance(t) != "90.00" {
+		t.Errorf("early win must credit once its bet exists: %s", e.balance(t))
+	}
+}
+
+func TestLossRequiresWalletCurrency(t *testing.T) {
+	e := newTestEnv(t, "10.00")
+	c := e.op(wager.KindLoss, "loss-usd", "0.00", "")
+	c.Money = money.MustFromUnits(0, "USD")
+	r, err := e.proc.Process(context.Background(), c)
+	if err != nil || r.FailureCode != wager.CodeCurrencyMismatch {
+		t.Errorf("got %+v %v", r, err)
+	}
+}
+
+func TestReplayKeepsOriginalBalanceAcrossKinds(t *testing.T) {
+	e := newTestEnv(t, "100.00")
+	ctx := context.Background()
+	first, _ := e.proc.Process(ctx, e.op(wager.KindWin, "win-1", "50.00", ""))
+	_, _ = e.proc.Process(ctx, e.op(wager.KindBet, "bet-1", "120.00", ""))
+	_, _ = e.proc.Process(ctx, e.op(wager.KindLoss, "loss-1", "0.00", ""))
+	again, _ := e.proc.Process(ctx, e.op(wager.KindWin, "win-1", "50.00", ""))
+	if !again.IdempotentReplay || again.Balance.String() != "150.00" || again.TransactionID != first.TransactionID {
+		t.Errorf("replay: %+v", again)
+	}
+	if e.balance(t) != "30.00" {
+		t.Errorf("balance %s", e.balance(t))
+	}
+}

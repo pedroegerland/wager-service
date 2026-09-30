@@ -74,7 +74,7 @@ func TestWalletOpening(t *testing.T) {
 
 func TestSubmitContract(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "25.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "25.00", walletID: walletID, playerID: playerID}
 
 	r := submitAPI(t, bet)
 	if r.Status != 200 || r.str("status") != "PROCESSED" || r.money("balance") != "75.00" || r.bool("idempotentReplay") {
@@ -82,7 +82,7 @@ func TestSubmitContract(t *testing.T) {
 	}
 	txID := r.str("transactionId")
 
-	win := operation{ext: "win-" + uid(), kind: "WIN", amount: "10.00", walletID: walletID, playerID: playerID}
+	win := operation{ext: "win-" + shortID(), kind: "WIN", amount: "10.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, win); r.Status != 200 || r.money("balance") != "85.00" {
 		t.Fatalf("win: %d %s", r.Status, r.Raw)
 	}
@@ -98,7 +98,7 @@ func TestSubmitContract(t *testing.T) {
 	}
 
 	rekeyed := bet
-	rekeyed.key = "another-key-" + uid()
+	rekeyed.key = "another-key-" + shortID()
 	if r := submitAPI(t, rekeyed); r.Status != 409 || r.str("code") != "EXTERNAL_TRANSACTION_ID_REUSED" {
 		t.Errorf("ext reuse: %d %s", r.Status, r.Raw)
 	}
@@ -108,7 +108,7 @@ func TestSubmitContract(t *testing.T) {
 		t.Errorf("no key: %d %s", r.Status, r.Raw)
 	}
 
-	big := operation{ext: "bet-" + uid(), kind: "BET", amount: "500.00", walletID: walletID, playerID: playerID}
+	big := operation{ext: "bet-" + shortID(), kind: "BET", amount: "500.00", walletID: walletID, playerID: playerID}
 	r = submitAPI(t, big)
 	if r.Status != 422 || r.str("failureCode") != "INSUFFICIENT_FUNDS" || r.money("balance") != "85.00" {
 		t.Errorf("insufficient: %d %s", r.Status, r.Raw)
@@ -118,27 +118,27 @@ func TestSubmitContract(t *testing.T) {
 		t.Errorf("insufficient replay: %d %s", r.Status, r.Raw)
 	}
 
-	loss := operation{ext: "loss-" + uid(), kind: "LOSS", amount: "0.00", walletID: walletID, playerID: playerID}
+	loss := operation{ext: "loss-" + shortID(), kind: "LOSS", amount: "0.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, loss); r.Status != 200 || r.money("balance") != "85.00" {
 		t.Errorf("loss: %d %s", r.Status, r.Raw)
 	}
-	loss.ext, loss.amount = "loss-"+uid(), "1.00"
+	loss.ext, loss.amount = "loss-"+shortID(), "1.00"
 	if r := submitAPI(t, loss); r.Status != 400 {
 		t.Errorf("loss with amount: %d %s", r.Status, r.Raw)
 	}
 
-	opening := operation{ext: "o-" + uid(), kind: "OPENING", amount: "1.00", walletID: walletID, playerID: playerID}
+	opening := operation{ext: "o-" + shortID(), kind: "OPENING", amount: "1.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, opening); r.Status != 400 {
 		t.Errorf("opening: %d %s", r.Status, r.Raw)
 	}
 
-	ghost := operation{ext: "g-" + uid(), kind: "BET", amount: "1.00", walletID: uuid.NewString(), playerID: playerID}
+	ghost := operation{ext: "g-" + shortID(), kind: "BET", amount: "1.00", walletID: uuid.NewString(), playerID: playerID}
 	if r := submitAPI(t, ghost); r.Status != 404 {
 		t.Errorf("ghost wallet: %d %s", r.Status, r.Raw)
 	}
 
 	r = httpRequest(t, apiURL, "POST", "/wagering/transactions", token(t, "provider-a"),
-		map[string]any{"foo": "bar"}, map[string]string{"Idempotency-Key": "k-" + uid()})
+		map[string]any{"foo": "bar"}, map[string]string{"Idempotency-Key": "k-" + shortID()})
 	if r.Status != 400 {
 		t.Errorf("unknown field: %d %s", r.Status, r.Raw)
 	}
@@ -152,36 +152,36 @@ func TestSubmitContract(t *testing.T) {
 
 func TestReversals(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "30.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "30.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, bet); r.Status != 200 {
 		t.Fatalf("bet: %s", r.Raw)
 	}
-	refund := operation{ext: "ref-" + uid(), kind: "REFUND", amount: "30.00", ref: bet.ext, walletID: walletID, playerID: playerID}
+	refund := operation{ext: "ref-" + shortID(), kind: "REFUND", amount: "30.00", ref: bet.ext, walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, refund); r.Status != 200 || r.money("balance") != "100.00" {
 		t.Fatalf("refund: %d %s", r.Status, r.Raw)
 	}
-	rollback := operation{ext: "rb-" + uid(), kind: "ROLLBACK", amount: "30.00", ref: bet.ext, walletID: walletID, playerID: playerID}
+	rollback := operation{ext: "rb-" + shortID(), kind: "ROLLBACK", amount: "30.00", ref: bet.ext, walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, rollback); r.Status != 422 || r.str("failureCode") != "REFERENCE_ALREADY_REVERSED" {
 		t.Errorf("second reversal: %d %s", r.Status, r.Raw)
 	}
 
-	rb2 := operation{ext: "rb-" + uid(), kind: "ROLLBACK", amount: "30.00", ref: refund.ext, walletID: walletID, playerID: playerID}
+	rb2 := operation{ext: "rb-" + shortID(), kind: "ROLLBACK", amount: "30.00", ref: refund.ext, walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, rb2); r.Status != 200 || r.money("balance") != "70.00" {
 		t.Errorf("rollback refund: %d %s", r.Status, r.Raw)
 	}
 
-	win := operation{ext: "win-" + uid(), kind: "WIN", amount: "100.00", walletID: walletID, playerID: playerID}
+	win := operation{ext: "win-" + shortID(), kind: "WIN", amount: "100.00", walletID: walletID, playerID: playerID}
 	submitAPI(t, win)
-	drain := operation{ext: "bet-" + uid(), kind: "BET", amount: "170.00", walletID: walletID, playerID: playerID}
+	drain := operation{ext: "bet-" + shortID(), kind: "BET", amount: "170.00", walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, drain); r.Status != 200 {
 		t.Fatalf("drain: %s", r.Raw)
 	}
-	rbWin := operation{ext: "rb-" + uid(), kind: "ROLLBACK", amount: "100.00", ref: win.ext, walletID: walletID, playerID: playerID}
+	rbWin := operation{ext: "rb-" + shortID(), kind: "ROLLBACK", amount: "100.00", ref: win.ext, walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, rbWin); r.Status != 422 || r.str("failureCode") != "REVERSAL_INSUFFICIENT_FUNDS" {
 		t.Errorf("overdraw rollback: %d %s", r.Status, r.Raw)
 	}
 
-	partial := operation{ext: "ref-" + uid(), kind: "REFUND", amount: "10.00", ref: drain.ext, walletID: walletID, playerID: playerID}
+	partial := operation{ext: "ref-" + shortID(), kind: "REFUND", amount: "10.00", ref: drain.ext, walletID: walletID, playerID: playerID}
 	if r := submitAPI(t, partial); r.Status != 422 || r.str("failureCode") != "REFERENCE_MISMATCH" {
 		t.Errorf("partial: %d %s", r.Status, r.Raw)
 	}
@@ -196,7 +196,7 @@ func TestLedgerPagingAndTransactionReads(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
 	var exts []string
 	for i := 0; i < 5; i++ {
-		o := operation{ext: "bet-" + uid(), kind: "BET", amount: "1.00", walletID: walletID, playerID: playerID}
+		o := operation{ext: "bet-" + shortID(), kind: "BET", amount: "1.00", walletID: walletID, playerID: playerID}
 		if r := submitAPI(t, o); r.Status != 200 {
 			t.Fatalf("bet %d: %s", i, r.Raw)
 		}
@@ -248,7 +248,7 @@ func TestLedgerPagingAndTransactionReads(t *testing.T) {
 
 func TestAuthAndIsolation(t *testing.T) {
 	walletID, playerID := openWallet(t, "50.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "5.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "5.00", walletID: walletID, playerID: playerID}
 	r := submitAPI(t, bet)
 	if r.Status != 200 {
 		t.Fatalf("bet: %s", r.Raw)
@@ -256,14 +256,14 @@ func TestAuthAndIsolation(t *testing.T) {
 	txID := r.str("transactionId")
 
 	for name, tok := range map[string]string{"none": "", "garbage": "not-a-jwt", "tampered": token(t, "provider-a")[:len(token(t, "provider-a"))-3] + "abc"} {
-		r := httpRequest(t, apiURL, "POST", "/wagering/transactions", tok, bet.body(), map[string]string{"Idempotency-Key": "x-" + uid()})
+		r := httpRequest(t, apiURL, "POST", "/wagering/transactions", tok, bet.body(), map[string]string{"Idempotency-Key": "x-" + shortID()})
 		if r.Status != 401 {
 			t.Errorf("%s token: %d %s", name, r.Status, r.Raw)
 		}
 	}
 
 	other := bet
-	other.ext, other.provider = "bet-"+uid(), "provider-b"
+	other.ext, other.provider = "bet-"+shortID(), "provider-b"
 	other.key = "provider-b:" + other.ext
 	body := other.body()
 	body["providerId"] = "provider-a"
@@ -298,7 +298,7 @@ func TestAuthAndIsolation(t *testing.T) {
 	if r := apiRequest(t, "GET", "/wallets/"+walletID, token(t, "outsider"), nil, nil); r.Status != 403 {
 		t.Errorf("outsider wallet: %d", r.Status)
 	}
-	r = httpRequest(t, apiURL, "POST", "/wagering/transactions", token(t, "outsider"), bet.body(), map[string]string{"Idempotency-Key": "o-" + uid()})
+	r = httpRequest(t, apiURL, "POST", "/wagering/transactions", token(t, "outsider"), bet.body(), map[string]string{"Idempotency-Key": "o-" + shortID()})
 	if r.Status != 403 {
 		t.Errorf("outsider submit: %d %s", r.Status, r.Raw)
 	}

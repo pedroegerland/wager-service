@@ -72,7 +72,7 @@ func TestSchemaGuards(t *testing.T) {
 
 func TestMigrationsRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	name := "migtest_" + uid()
+	name := "migtest_" + shortID()
 	if _, err := pool.Exec(ctx, `CREATE DATABASE `+name); err != nil {
 		t.Fatal(err)
 	}

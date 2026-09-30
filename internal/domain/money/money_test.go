@@ -149,3 +149,29 @@ func TestJSON(t *testing.T) {
 		t.Fatalf("got %s", b)
 	}
 }
+
+func TestZeroPerCurrency(t *testing.T) {
+	z, err := Zero("BRL")
+	if err != nil || !z.IsZero() || z.Currency() != "BRL" || z.String() != "0.00" {
+		t.Fatalf("zero: %v %v", z, err)
+	}
+	if _, err := Zero("br"); !errors.Is(err, ErrInvalidCurrency) {
+		t.Errorf("bad currency: %v", err)
+	}
+	usd := MustFromUnits(0, "USD")
+	if z.Equal(usd) {
+		t.Error("zero of different currencies must not be equal")
+	}
+}
+
+func TestDTORoundTrip(t *testing.T) {
+	m := MustFromUnits(123456, "BRL")
+	d := m.DTO()
+	if d.Amount != "1234.56" || d.Currency != "BRL" {
+		t.Fatalf("%+v", d)
+	}
+	back, err := Parse(d.Amount, d.Currency)
+	if err != nil || !back.Equal(m) {
+		t.Errorf("round trip: %v %v", back, err)
+	}
+}

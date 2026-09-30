@@ -214,7 +214,7 @@ func assertReconciled(t testing.TB, walletID string) {
 	}
 }
 
-func uid() string { return uuid.NewString()[:8] }
+func shortID() string { return uuid.NewString()[:8] }
 
 func operationMessage(o operation, messageID string) string {
 	b := map[string]any{

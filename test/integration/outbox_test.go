@@ -100,7 +100,7 @@ func TestOutboxAbandonedLeaseRecovered(t *testing.T) {
 
 func TestOutboxEventReachesQueue(t *testing.T) {
 	walletID, playerID := openWallet(t, "12.00")
-	if r := submitAPI(t, operation{ext: "bet-" + uid(), kind: "BET", amount: "2.00", walletID: walletID, playerID: playerID}); r.Status != 200 {
+	if r := submitAPI(t, operation{ext: "bet-" + shortID(), kind: "BET", amount: "2.00", walletID: walletID, playerID: playerID}); r.Status != 200 {
 		t.Fatal(string(r.Raw))
 	}
 	waitUntil(t, 20*time.Second, "outbox to drain for the wallet", func() bool {

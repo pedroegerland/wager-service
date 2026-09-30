@@ -15,6 +15,7 @@ import (
 )
 
 type OutboxConfig struct {
+	Owner        string
 	PollInterval time.Duration
 	BatchSize    int
 	Lease        time.Duration
@@ -54,11 +55,12 @@ func NewOutboxPublisher(uow port.UnitOfWork, pub port.EventPublisher, cfg Outbox
 	if m == nil {
 		m = port.NopMetrics{}
 	}
-	host, _ := os.Hostname()
-	return &OutboxPublisher{
-		uow: uow, pub: pub, cfg: cfg, log: log, metrics: m,
-		owner: fmt.Sprintf("%s/%s", host, uuid.NewString()[:8]),
+	owner := cfg.Owner
+	if owner == "" {
+		host, _ := os.Hostname()
+		owner = fmt.Sprintf("%s/%s", host, uuid.NewString()[:8])
 	}
+	return &OutboxPublisher{uow: uow, pub: pub, cfg: cfg, log: log, metrics: m, owner: owner}
 }
 
 func (w *OutboxPublisher) Owner() string { return w.owner }

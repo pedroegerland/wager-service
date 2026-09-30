@@ -18,7 +18,7 @@ func instances() []string {
 
 func TestConcurrentSameBet50(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "10.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "10.00", walletID: walletID, playerID: playerID}
 	targets := instances()
 
 	var wg sync.WaitGroup
@@ -56,8 +56,8 @@ func TestConcurrentSameBet50(t *testing.T) {
 func TestConcurrentTwoBetsOnHundred(t *testing.T) {
 	for round := 0; round < 5; round++ {
 		walletID, playerID := openWallet(t, "100.00")
-		a := operation{ext: "bet-a-" + uid(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
-		b := operation{ext: "bet-b-" + uid(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
+		a := operation{ext: "bet-a-" + shortID(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
+		b := operation{ext: "bet-b-" + shortID(), kind: "BET", amount: "80.00", walletID: walletID, playerID: playerID}
 		targets := instances()
 
 		var wg sync.WaitGroup
@@ -110,7 +110,7 @@ func TestIndependentWalletsInParallel(t *testing.T) {
 			wg.Add(1)
 			go func(i, j int, wl w) {
 				defer wg.Done()
-				r := submit(t, targets[(i+j)%len(targets)], operation{ext: "bet-" + uid(), kind: "BET", amount: "1.00", walletID: wl.id, playerID: wl.player})
+				r := submit(t, targets[(i+j)%len(targets)], operation{ext: "bet-" + shortID(), kind: "BET", amount: "1.00", walletID: wl.id, playerID: wl.player})
 				if r.Status != 200 {
 					errs <- string(r.Raw)
 				}
@@ -136,12 +136,12 @@ func TestMultiInstanceReplay(t *testing.T) {
 		t.Skip("needs API_INSTANCES with several processes")
 	}
 	walletID, playerID := openWallet(t, "100.00")
-	bet := operation{ext: "bet-" + uid(), kind: "BET", amount: "40.00", walletID: walletID, playerID: playerID}
+	bet := operation{ext: "bet-" + shortID(), kind: "BET", amount: "40.00", walletID: walletID, playerID: playerID}
 	first := submit(t, targets[0], bet)
 	if first.Status != 200 {
 		t.Fatalf("bet: %s", first.Raw)
 	}
-	submit(t, targets[1], operation{ext: "win-" + uid(), kind: "WIN", amount: "5.00", walletID: walletID, playerID: playerID})
+	submit(t, targets[1], operation{ext: "win-" + shortID(), kind: "WIN", amount: "5.00", walletID: walletID, playerID: playerID})
 	for _, base := range targets[1:] {
 		r := submit(t, base, bet)
 		if r.Status != 200 || !r.bool("idempotentReplay") || r.money("balance") != "60.00" || r.str("transactionId") != first.str("transactionId") {

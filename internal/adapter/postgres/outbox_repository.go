@@ -39,7 +39,7 @@ func (r *outboxRepository) Claim(ctx context.Context, owner string, lease time.D
 		WHERE id IN (
 			SELECT id FROM outbox_events
 			WHERE published_at IS NULL AND next_attempt_at <= $3
-			  AND (locked_until IS NULL OR locked_until < $3)
+			  AND (locked_until IS NULL OR locked_until < $3 OR locked_by = $1)
 			ORDER BY occurred_at, id
 			LIMIT $4
 			FOR UPDATE SKIP LOCKED)

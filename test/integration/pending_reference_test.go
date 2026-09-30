@@ -9,8 +9,8 @@ import (
 
 func TestReversalBeforeReference(t *testing.T) {
 	walletID, playerID := openWallet(t, "100.00")
-	betExt := "bet-" + uid()
-	refund := operation{ext: "ref-" + uid(), kind: "REFUND", amount: "30.00", ref: betExt, walletID: walletID, playerID: playerID}
+	betExt := "bet-" + shortID()
+	refund := operation{ext: "ref-" + shortID(), kind: "REFUND", amount: "30.00", ref: betExt, walletID: walletID, playerID: playerID}
 
 	r := submitAPI(t, refund)
 	if r.Status != 202 || r.str("status") != "PENDING_REFERENCE" || r.Body["balance"] != nil {
@@ -54,7 +54,7 @@ func TestReversalReferenceExpires(t *testing.T) {
 		t.Skip("depends on the short retry budget of the in-process config")
 	}
 	walletID, playerID := openWallet(t, "100.00")
-	rb := operation{ext: "rb-" + uid(), kind: "ROLLBACK", amount: "30.00", ref: "never-" + uid(), walletID: walletID, playerID: playerID}
+	rb := operation{ext: "rb-" + shortID(), kind: "ROLLBACK", amount: "30.00", ref: "never-" + shortID(), walletID: walletID, playerID: playerID}
 	r := submitAPI(t, rb)
 	if r.Status != 202 {
 		t.Fatalf("rollback: %d %s", r.Status, r.Raw)
