@@ -15,9 +15,35 @@ func isHelp(cmd string) bool {
 	return false
 }
 
+func stdinIsTerminal() bool {
+	info, err := os.Stdin.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+func wantsColors(in *bufio.Scanner, interactive bool) bool {
+	if !colorsEnabled || !interactive {
+		return colorsEnabled
+	}
+	for {
+		fmt.Print("Quer a saída com cores? [S/n] ")
+		if !in.Scan() {
+			return true
+		}
+		switch strings.ToLower(strings.TrimSpace(in.Text())) {
+		case "", "s", "sim", "y", "yes":
+			return true
+		case "n", "nao", "não", "no":
+			return false
+		}
+		fmt.Println("responda S (sim) ou N (não)")
+	}
+}
+
 func main() {
 	s := newSession()
+	in := bufio.NewScanner(os.Stdin)
 	fmt.Println("wager-service playground")
+	colorsEnabled = wantsColors(in, stdinIsTerminal())
 	fmt.Printf("api=%s keycloak=%s sqs=%s\n", s.apiURL, s.keycloakURL, s.awsEndpoint)
 	if err := s.checkAPI(); err != nil {
 		fmt.Println(red(fmt.Sprintf("aviso: a api não respondeu em %s (%v). Suba com 'make play' ou 'make demo'.", s.apiURL, err)))
@@ -27,7 +53,6 @@ func main() {
 	fmt.Println(yellow("Comece com 'open'. 'help' (ou comandos, cmds, ações) repete esta lista, 'quit' sai."))
 	fmt.Println()
 
-	in := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print(s.prompt())
 		if !in.Scan() {

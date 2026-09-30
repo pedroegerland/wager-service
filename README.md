@@ -247,6 +247,10 @@ ledger
 reconcile
 ```
 
+Ao abrir, o prompt pergunta se quer a saída com cores (`S`/`sim` ou `N`/`não`; Enter é sim).
+Verde é sucesso, vermelho é falha, amarelo é dica. A pergunta é pulada quando a entrada vem
+de um pipe ou quando `NO_COLOR` está definido.
+
 Também roda direto com `go run ./cmd/playground`; `API_URL`, `KEYCLOAK_URL` e
 `AWS_ENDPOINT_URL` apontam para outro ambiente.
 
