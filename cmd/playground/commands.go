@@ -11,7 +11,7 @@ import (
 func (s *session) open(args []string) error {
 	amount := "100.00"
 	if len(args) > 0 {
-		amount = args[0]
+		amount = normalizeAmount(args[0])
 	}
 	s.playerID = uuid.NewString()
 	r, err := s.call("POST", "/wallets", "wallet-admin", map[string]any{
@@ -77,7 +77,7 @@ func (s *session) movement(kind string, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("uso: %s <valor> [id]", kindLower(kind))
 	}
-	op := operation{kind: kind, amount: args[0], ext: s.newExt(kind)}
+	op := operation{kind: kind, amount: normalizeAmount(args[0]), ext: s.newExt(kind)}
 	if len(args) > 1 {
 		op.ext = args[1]
 	}
@@ -113,7 +113,7 @@ func (s *session) reversal(kind string, args []string) error {
 	ref := args[0]
 	amount := ""
 	if len(args) > 1 {
-		amount = args[1]
+		amount = normalizeAmount(args[1])
 	} else if known, ok := s.ops[ref]; ok {
 		amount = known.amount
 	} else {
@@ -157,7 +157,7 @@ func (s *session) conflict(args []string) error {
 		return fmt.Errorf("não conheço %q nesta sessão (ops lista)", args[0])
 	}
 	changed := op
-	changed.amount = args[1]
+	changed.amount = normalizeAmount(args[1])
 	r, err := s.call("POST", "/wagering/transactions", s.provider, s.submitBody(changed), map[string]string{"Idempotency-Key": op.key})
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (s *session) race(args []string) error {
 	if err := s.requireWallet(); err != nil {
 		return err
 	}
-	op := operation{kind: "BET", amount: args[0], ext: s.newExt("BET")}
+	op := operation{kind: "BET", amount: normalizeAmount(args[0]), ext: s.newExt("BET")}
 	op.key = s.providerForOps() + ":" + op.ext
 	s.remember(op)
 	body := s.submitBody(op)
@@ -233,8 +233,8 @@ func (s *session) race2(args []string) error {
 	if err := s.requireWallet(); err != nil {
 		return err
 	}
-	a := operation{kind: "BET", amount: args[0], ext: s.newExt("BET")}
-	b := operation{kind: "BET", amount: args[1], ext: s.newExt("BET")}
+	a := operation{kind: "BET", amount: normalizeAmount(args[0]), ext: s.newExt("BET")}
+	b := operation{kind: "BET", amount: normalizeAmount(args[1]), ext: s.newExt("BET")}
 	var ra, rb reply
 	var wg sync.WaitGroup
 	wg.Add(2)

@@ -22,7 +22,7 @@ func (s *session) viaSQS(args []string) error {
 		return err
 	}
 	kind := strings.ToUpper(args[0])
-	op := operation{kind: kind, amount: args[1], ext: s.newExt(kind)}
+	op := operation{kind: kind, amount: normalizeAmount(args[1]), ext: s.newExt(kind)}
 	if len(args) > 2 {
 		op.ref = args[2]
 	}

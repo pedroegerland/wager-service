@@ -12,7 +12,7 @@ func main() {
 	fmt.Println("wager-service playground")
 	fmt.Printf("api=%s keycloak=%s sqs=%s\n\n", s.apiURL, s.keycloakURL, s.awsEndpoint)
 	_ = s.help(nil)
-	fmt.Println("Comece com 'open'. 'help' repete esta lista, 'quit' sai.")
+	fmt.Println("Comece com 'open'. 'help' (ou comandos, cmds, ações) repete esta lista, 'quit' sai.")
 	fmt.Println()
 
 	in := bufio.NewScanner(os.Stdin)

@@ -165,7 +165,7 @@ $ make play
 [provider-a | carteira 01a0f3c1 | 10.00 BRL] > as provider-b          # troca o token: provider-b não vê as transações de A
 ```
 
-`help` lista tudo. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
+`help` (ou `comandos`, `cmds`, `ações`) lista tudo. Valores aceitam inteiro: `bet 25` vira `25.00`. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
 e a resolução quando a aposta chega. Também dá para rodar direto: `go run ./cmd/playground`
 (variáveis `API_URL`, `KEYCLOAK_URL`, `AWS_ENDPOINT_URL` para apontar para outro lugar).
 

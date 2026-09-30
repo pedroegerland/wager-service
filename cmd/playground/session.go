@@ -70,7 +70,8 @@ func (s *session) newExt(kind string) string {
 func (s *session) run(args []string) error {
 	cmd, rest := args[0], args[1:]
 	handlers := map[string]func([]string) error{
-		"help": s.help, "open": s.open, "wallet": s.wallet, "ledger": s.ledger, "reconcile": s.reconcile,
+		"help": s.help, "comandos": s.help, "comando": s.help, "cmds": s.help, "cmd": s.help, "acoes": s.help, "ações": s.help,
+		"open": s.open, "wallet": s.wallet, "ledger": s.ledger, "reconcile": s.reconcile,
 		"bet": s.bet, "win": s.win, "loss": s.loss, "refund": s.refund, "rollback": s.rollback,
 		"replay": s.replay, "conflict": s.conflict, "race": s.race, "race2": s.race2,
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
@@ -83,7 +84,9 @@ func (s *session) run(args []string) error {
 }
 
 func (s *session) help([]string) error {
-	fmt.Print(`carteira (token wallet-admin)
+	fmt.Print(`valores: xx.yy; um inteiro vale como reais (25 -> 25.00, 25.5 -> 25.50)
+
+carteira (token wallet-admin)
   open [valor]            abre carteira nova para um jogador novo (padrão 100.00)
   wallet                  mostra saldo e versão
   ledger                  lista os lançamentos
@@ -107,6 +110,7 @@ concorrência
 sessão
   ops                     operações enviadas nesta sessão
   as <provider-a|provider-b|wallet-admin>   troca o token usado nas operações
+  help | comandos | cmds | ações   esta lista
   quit
 `)
 	return nil
