@@ -86,7 +86,7 @@ func TestMigrationsRoundTrip(t *testing.T) {
 	must(t, m.Up())
 	v, dirty, err := m.Version()
 	must(t, err)
-	if v != 1 || dirty {
+	if v != 2 || dirty {
 		t.Errorf("after up: v=%d dirty=%v", v, dirty)
 	}
 	must(t, m.Down())

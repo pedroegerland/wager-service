@@ -39,18 +39,40 @@ func wantsColors(in *bufio.Scanner, interactive bool) bool {
 	}
 }
 
+func askOwner(in *bufio.Scanner, interactive bool, current string) string {
+	if !interactive {
+		return current
+	}
+	for {
+		fmt.Printf("Seu nome (para listar e retomar suas carteiras depois) [%s]: ", current)
+		if !in.Scan() {
+			return current
+		}
+		name := strings.TrimSpace(in.Text())
+		if name == "" {
+			return current
+		}
+		if len(name) <= 40 {
+			return name
+		}
+		fmt.Println("use até 40 caracteres")
+	}
+}
+
 func main() {
 	s := newSession()
 	in := bufio.NewScanner(os.Stdin)
 	fmt.Println("wager-service playground")
-	colorsEnabled = wantsColors(in, stdinIsTerminal())
+	interactive := stdinIsTerminal()
+	colorsEnabled = wantsColors(in, interactive)
+	s.owner = askOwner(in, interactive, s.owner)
 	fmt.Printf("api=%s keycloak=%s sqs=%s\n", s.apiURL, s.keycloakURL, s.awsEndpoint)
 	if err := s.checkAPI(); err != nil {
 		fmt.Println(red(fmt.Sprintf("aviso: a api não respondeu em %s (%v). Suba com 'make play' ou 'make demo'.", s.apiURL, err)))
 	}
 	fmt.Println()
 	_ = s.help(nil)
-	fmt.Println(yellow("Comece com 'open'. 'help' (ou comandos, cmds, ações) repete esta lista, 'quit' sai."))
+	fmt.Println(yellow("Comece com 'open', ou 'use " + s.owner + "' para retomar sua última carteira. 'help' repete esta lista, 'quit' sai."))
 	fmt.Println()
 
 	for {

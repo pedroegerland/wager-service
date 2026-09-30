@@ -191,7 +191,9 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 
 | Comando | Argumentos | O que faz | Exemplo |
 | --- | --- | --- | --- |
-| `open [valor]` | valor inicial, padrão `100.00` | abre carteira para um jogador novo (token `wallet-admin`) | `open 1000` |
+| `open [valor]` | valor inicial, padrão `100.00` | abre carteira para um jogador novo (token `wallet-admin`) e a registra no seu nome | `open 1000` |
+| `wallets [nome]` | nome opcional | lista as carteiras abertas pelo playground, mais recente primeiro, com saldo e versão | `wallets`, `wallets pedro` |
+| `use <id\|nome>` | `walletId` ou nome de quem abriu | retoma uma carteira existente; por nome pega a mais recente | `use pedro` |
 | `wallet` | | saldo e versão da carteira atual | `wallet` |
 | `ledger` | | lançamentos da carteira, com saldo antes e depois | `ledger` |
 | `reconcile` | | recalcula o saldo pelo ledger e compara | `reconcile` |
@@ -248,7 +250,12 @@ ledger
 reconcile
 ```
 
-Ao abrir, o prompt pergunta se quer a saída com cores (`S`/`sim` ou `N`/`não`; Enter é sim).
+Ao abrir, o prompt pergunta se quer a saída com cores (`S`/`sim` ou `N`/`não`; Enter é sim)
+e o seu nome. Cada carteira aberta fica registrada nesse nome na tabela `playground_wallets`
+(migration `000002`, apoio do playground, fora do domínio), então se a sessão cair ou você
+voltar mais tarde, `use pedro` retoma a última carteira de pedro e `wallets` lista todas.
+As operações de sessões anteriores não voltam para o `ops`; `refund`/`rollback` delas
+funcionam informando o valor. Sem terminal interativo o nome vem de `PLAYGROUND_USER`.
 Verde é sucesso, vermelho é falha, amarelo é dica. A pergunta é pulada quando a entrada vem
 de um pipe ou quando `NO_COLOR` está definido.
 

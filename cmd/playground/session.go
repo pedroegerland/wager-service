@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type operation struct {
@@ -19,6 +20,9 @@ type session struct {
 	apiURL      string
 	keycloakURL string
 	awsEndpoint string
+	databaseURL string
+	owner       string
+	pool        *pgxpool.Pool
 
 	provider string
 	playerID string
@@ -42,6 +46,8 @@ func newSession() *session {
 		apiURL:      envOr("API_URL", "http://localhost:8080"),
 		keycloakURL: envOr("KEYCLOAK_URL", "http://localhost:8180"),
 		awsEndpoint: envOr("AWS_ENDPOINT_URL", "http://localhost:4566"),
+		databaseURL: envOr("DATABASE_URL", "postgres://wager:wager@localhost:5432/wager?sslmode=disable"),
+		owner:       envOr("PLAYGROUND_USER", "anon"),
 		provider:    "provider-a",
 		ops:         map[string]operation{},
 		tokens:      map[string]cachedToken{},
@@ -50,9 +56,9 @@ func newSession() *session {
 
 func (s *session) prompt() string {
 	if s.walletID == "" {
-		return fmt.Sprintf("[%s | sem carteira] > ", s.provider)
+		return fmt.Sprintf("[%s | %s | sem carteira] > ", s.owner, s.provider)
 	}
-	return fmt.Sprintf("[%s | carteira %s | %s BRL] > ", s.provider, s.walletID[:8], s.balance)
+	return fmt.Sprintf("[%s | %s | carteira %s | %s BRL] > ", s.owner, s.provider, s.walletID[:8], s.balance)
 }
 
 func (s *session) remember(op operation) {
@@ -78,7 +84,7 @@ func (s *session) run(args []string) error {
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
 		"events": s.events, "dlq": s.dlq, "poison": s.poison, "redeliver": s.redeliver,
 		"flood": s.flood, "unblock": s.unblock, "auth": s.auth, "health": s.health, "metrics": s.metrics,
-		"login": s.loginCmd,
+		"login": s.loginCmd, "wallets": s.wallets, "use": s.use,
 	}
 	h, ok := handlers[cmd]
 	if !ok {
@@ -91,7 +97,9 @@ func (s *session) help([]string) error {
 	fmt.Print(`valores: xx.yy; um inteiro vale como reais (25 -> 25.00, 25.5 -> 25.50)
 
 carteira (token wallet-admin)
-  open [valor]            abre carteira nova para um jogador novo (padrão 100.00)
+  open [valor]            abre carteira nova para um jogador novo (padrão 100.00) e a registra no seu nome
+  wallets [nome]          lista as carteiras abertas pelo playground (todas, ou só as de um nome)
+  use <id|nome>           retoma uma carteira existente pelo walletId ou pelo nome de quem abriu
   wallet                  mostra saldo e versão
   ledger                  lista os lançamentos
   reconcile               recalcula o saldo pelo ledger

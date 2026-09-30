@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +27,13 @@ func (s *session) open(args []string) error {
 		s.walletID = r.str("id")
 		s.ops = map[string]operation{}
 		s.order = nil
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.registerWallet(ctx, uuid.MustParse(s.walletID)); err != nil {
+			fmt.Println(yellow("aviso: carteira aberta, mas não consegui registrar no seu nome: " + err.Error()))
+		} else {
+			fmt.Println(green(fmt.Sprintf("carteira registrada no nome de %s; retome depois com: use %s", s.owner, s.owner)))
+		}
 	}
 	return nil
 }
