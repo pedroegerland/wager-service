@@ -159,3 +159,58 @@ func fmtCents(c int64) string {
 	}
 	return fmt.Sprintf("%s%d.%02d", sign, c/100, c%100)
 }
+
+func (s *session) walletOwner(ctx context.Context, walletID uuid.UUID) (string, bool, error) {
+	pool, err := s.db(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	var owner string
+	err = pool.QueryRow(ctx, `SELECT owner_name FROM playground_wallets WHERE wallet_id = $1`, walletID).Scan(&owner)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return owner, true, nil
+}
+
+func (s *session) apply(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("uso: apply <walletId> [nome]  (nome padrão: %s)", s.owner)
+	}
+	walletID, err := uuid.Parse(args[0])
+	if err != nil {
+		return fmt.Errorf("%q não é um walletId; 'wallets' lista as registradas, e o id de qualquer carteira aparece na resposta do POST /wallets", args[0])
+	}
+	name := s.owner
+	if len(args) > 1 {
+		name = strings.Join(args[1:], " ")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if owner, found, err := s.walletOwner(ctx, walletID); err != nil {
+		return err
+	} else if found {
+		return fmt.Errorf("a carteira %s já pertence a %q; o vínculo não é trocado por aqui", walletID, owner)
+	}
+	r, err := s.call("GET", "/wallets/"+walletID.String(), "wallet-admin", nil, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != 200 {
+		s.show(r)
+		return fmt.Errorf("carteira %s não encontrada na API", walletID)
+	}
+	pool, err := s.db(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO playground_wallets (wallet_id, owner_name) VALUES ($1, $2)`, walletID, name); err != nil {
+		return err
+	}
+	fmt.Println(green(fmt.Sprintf("carteira %s (saldo %s) vinculada a %s; retome com: use %s", walletID, r.amount("balance"), name, name)))
+	return nil
+}

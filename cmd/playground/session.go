@@ -84,7 +84,7 @@ func (s *session) run(args []string) error {
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
 		"events": s.events, "dlq": s.dlq, "poison": s.poison, "redeliver": s.redeliver,
 		"flood": s.flood, "unblock": s.unblock, "auth": s.auth, "health": s.health, "metrics": s.metrics,
-		"login": s.loginCmd, "wallets": s.wallets, "use": s.use,
+		"login": s.loginCmd, "wallets": s.wallets, "use": s.use, "apply": s.apply,
 	}
 	h, ok := handlers[cmd]
 	if !ok {
@@ -100,6 +100,7 @@ carteira (token wallet-admin)
   open [valor]            abre carteira nova para um jogador novo (padrão 100.00) e a registra no seu nome
   wallets [nome]          lista as carteiras abertas pelo playground (todas, ou só as de um nome)
   use <id|nome>           retoma uma carteira existente pelo walletId ou pelo nome de quem abriu
+  apply <id> [nome]       vincula uma carteira sem dono (aberta por curl, testes etc.) a um nome; padrão o seu
   wallet                  mostra saldo e versão
   ledger                  lista os lançamentos
   reconcile               recalcula o saldo pelo ledger

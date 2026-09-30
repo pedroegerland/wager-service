@@ -194,6 +194,7 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 | `open [valor]` | valor inicial, padrão `100.00` | abre carteira para um jogador novo (token `wallet-admin`) e a registra no seu nome | `open 1000` |
 | `wallets [nome]` | nome opcional | lista as carteiras abertas pelo playground, mais recente primeiro, com saldo e versão | `wallets`, `wallets pedro` |
 | `use <id\|nome>` | `walletId` ou nome de quem abriu | retoma uma carteira existente; por nome pega a mais recente | `use pedro` |
+| `apply <id> [nome]` | `walletId`; nome padrão o seu | vincula uma carteira sem dono (aberta por `curl`, testes, outra ferramenta) a um nome; recusa se já tiver dono | `apply 01a0f49c-... pedro` |
 | `wallet` | | saldo e versão da carteira atual | `wallet` |
 | `ledger` | | lançamentos da carteira, com saldo antes e depois | `ledger` |
 | `reconcile` | | recalcula o saldo pelo ledger e compara | `reconcile` |
