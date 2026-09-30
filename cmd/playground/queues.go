@@ -74,7 +74,7 @@ func (s *session) drainQueue(ctx context.Context, path string, max int) ([]map[s
 }
 
 func (s *session) events(args []string) error {
-	max := 50
+	max := 1000
 	showAll := false
 	for _, a := range args {
 		if a == "all" || a == "todos" {
@@ -145,6 +145,9 @@ func (s *session) events(args []string) error {
 	}
 	if !showAll && others > 0 {
 		fmt.Println(yellow(fmt.Sprintf("%d eventos de outras carteiras foram lidos e omitidos; 'events all' mostra todos", others)))
+	}
+	if mine == 0 && s.walletID != "" && len(items) == max {
+		fmt.Println(yellow("a fila entrega do mais antigo ao mais novo e o limite foi atingido; rode 'events' de novo para chegar aos desta carteira"))
 	}
 	return nil
 }

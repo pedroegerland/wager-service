@@ -212,7 +212,7 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 | `redeliver [id]` | id enviado por `sqs`; padrão o último | reenvia o mesmo envelope e `messageId`; a inbox ignora e o saldo não muda | `redeliver` |
 | `poison` | | manda mensagem inválida e acompanha até a DLQ | `poison` |
 | `dlq` | | lê e remove o que está na DLQ, com o motivo | `dlq` |
-| `events [n\|all]` | n padrão 50; `all` inclui outras carteiras | lê e remove eventos de `wallet-events.fifo`, do mais recente ao mais antigo, com os da carteira atual em verde | `events`, `events all 20` |
+| `events [n\|all]` | n padrão 1000 (tudo que há na fila); `all` inclui outras carteiras | lê e remove eventos de `wallet-events.fifo`, do mais recente ao mais antigo, com os da carteira atual em verde | `events`, `events all 20` |
 | `flood [n]` | n padrão 400 | n GETs rápidos com o token atual; espera 429 com `Retry-After` | `flood 500` |
 | `unblock [client\|all]` | `provider-a`, `provider-b`, `wallet-admin` ou `all`; padrão o provedor atual | zera o bucket do chamador em cada instância (`DELETE /rate-limits/{sub}` com `wallet-admin`); sem isso o 429 só some quando o bucket enche de novo | `unblock`, `unblock all` |
 | `auth` | | oito chamadas (sem token, inválido, provedor errado, role errada e as que devem passar) com o código esperado | `auth` |
