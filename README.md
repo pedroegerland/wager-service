@@ -357,6 +357,24 @@ docker compose pause api-1          # outbox/pendências dessa instância são a
 docker compose unpause api-1
 ```
 
+## Alvos do Makefile
+
+| Alvo | O que faz |
+| --- | --- |
+| `make demo` | garante a infra (sobe o que faltar) e roda o fluxo de exemplo |
+| `make play` | garante a infra e abre o playground |
+| `make verify` | garante a infra e roda gofmt, vet, unitários com `-race`, integração in-process e contra as 3 instâncias |
+| `make infra` | só a checagem e subida da infra (`scripts/ensure-infra.sh`) |
+| `make test`, `make test-race`, `make vet`, `make fmt`, `make lint` | unitários e checagens, sem infra |
+| `make test-integration`, `make test-multi` | suítes de integração, in-process e contra as instâncias |
+| `make build` | binários em `bin/` (`wager-service`, `migrate`) |
+| `make up`, `make down` | `docker compose up --build -d` e `down -v` (apaga o volume do Postgres) |
+| `make deps-up`, `make deps-down` | só Postgres, Keycloak e LocalStack, com migrations, para rodar a API ou os testes do host |
+| `make migrate-up`, `make migrate-down`, `make migrate-version` | migrations via container (rebuild da imagem se houver SQL novo) |
+| `make logs` | segue os logs das três instâncias |
+| `make token CLIENT=<client>` | imprime um token do Keycloak |
+| `make clean` | remove `bin/` |
+
 ## Layout
 
 ```

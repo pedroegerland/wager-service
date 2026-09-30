@@ -84,7 +84,8 @@ voltar a `PENDING_REFERENCE` (cada tentativa incrementa `attempts` e reagenda
 `next_attempt_at`).
 
 Transitório × permanente: erro de infraestrutura durante o processamento (Postgres
-fora, timeout, deadlock) faz a transação SQL inteira dar rollback — a linha nem chega
+fora, timeout, deadlock, plano cacheado inválido depois de uma migration recriar tipos)
+faz a transação SQL inteira dar rollback — a linha nem chega
 a existir. Para HTTP é 503; para SQS a mensagem fica na fila e volta depois. `FAILED`
 existe no modelo e no schema para registrar uma falha permanente auditável, mas hoje
 nenhum caminho de código chega nele: como o processamento é síncrono dentro de uma
@@ -423,8 +424,11 @@ Além da suíte automatizada há um REPL (`make play`, `cmd/playground`) que fal
 API e com as filas do ambiente local. Ele existe para o avaliador reproduzir os cenários
 sem escrever `curl`: replay e conflito de chave, 50 cópias em paralelo, duas apostas
 disputando o saldo, reversão antes da referência, envio pela fila e reentrega do mesmo
-`messageId`, mensagem inválida indo para a DLQ, eventos publicados, rate limit, bateria
-de autorização, health e métricas por instância. O README tem a referência completa.
+`messageId`, mensagem inválida indo para a DLQ, eventos publicados, rate limit e sua
+liberação, bateria de autorização, health e métricas por instância. A sessão pergunta o
+nome de quem está testando e permite listar, retomar e vincular carteiras (`wallets`,
+`use`, `apply`); tokens são renovados sozinhos e `login` força a renovação. O README tem
+a referência completa.
 
 `make demo` sobe tudo de um checkout limpo e `make verify` roda todas as camadas de
 teste, incluindo a execução contra as três instâncias.
