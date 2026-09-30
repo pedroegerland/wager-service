@@ -163,7 +163,8 @@ passam pelo limitador, para um administrador bloqueado conseguir se liberar.
 
 ### Teste você mesmo
 
-Com o ambiente no ar, `make play` abre um prompt que conversa com a API e com as filas.
+`make play` abre um prompt que conversa com a API e com as filas. Se o ambiente não estiver
+no ar, ele sobe tudo antes (o mesmo que `make demo`, sem o fluxo de exemplo).
 Ele pega os tokens no Keycloak sozinho e guarda a carteira e as operações da sessão, então
 dá para reproduzir cada cenário do desafio sem escrever `curl`. A lista de comandos aparece
 na abertura e volta com `help`, `comandos`, `cmds` ou `ações`.

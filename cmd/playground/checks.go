@@ -122,6 +122,19 @@ func (s *session) auth([]string) error {
 	return nil
 }
 
+func (s *session) checkAPI() error {
+	resp, err := httpClient.Get(s.apiURL + "/health/ready")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("readiness respondeu %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (s *session) health([]string) error {
 	targets := append([]string{s.apiURL}, s.instanceURLs()...)
 	if len(targets) == 2 && targets[0] == targets[1] {

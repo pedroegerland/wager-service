@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Sobe o ambiente completo do zero e roda um fluxo de exemplo no final.
-# Uso: scripts/local-up.sh            (ou: make demo)
+# Uso: scripts/local-up.sh [--no-demo]   (ou: make demo)
 set -euo pipefail
 cd "$(dirname "$0")/.."
+DEMO=1
+[ "${1:-}" = "--no-demo" ] && DEMO=0
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
@@ -25,6 +27,12 @@ for i in $(seq 1 90); do
   [ "$i" -eq 90 ] && { echo "timeout esperando a api; veja: docker compose logs api-1"; exit 1; }
 done
 docker compose ps --format 'table {{.Service}}\t{{.Status}}'
+
+if [ "$DEMO" = "0" ]; then
+  echo
+  echo "ambiente pronto."
+  exit 0
+fi
 
 step "fluxo de exemplo pela nginx (localhost:8080)"
 ADMIN=$(scripts/token.sh wallet-admin)

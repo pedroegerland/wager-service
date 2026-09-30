@@ -70,9 +70,9 @@ demo:
 verify:
 	@scripts/verify.sh
 
-## REPL interativo contra o ambiente no ar: abra carteira, aposte, replay, conflito, corrida, sqs
+## REPL interativo: abra carteira, aposte, replay, conflito, corrida, sqs. Sobe a infra se ela não estiver no ar
 play:
-	go run ./cmd/playground
+	@scripts/play.sh
 
 clean:
 	rm -rf bin
