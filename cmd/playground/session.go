@@ -27,7 +27,7 @@ type session struct {
 	mu       sync.Mutex
 	ops      map[string]operation
 	order    []string
-	tokens   map[string]string
+	tokens   map[string]cachedToken
 }
 
 func envOr(k, def string) string {
@@ -44,7 +44,7 @@ func newSession() *session {
 		awsEndpoint: envOr("AWS_ENDPOINT_URL", "http://localhost:4566"),
 		provider:    "provider-a",
 		ops:         map[string]operation{},
-		tokens:      map[string]string{},
+		tokens:      map[string]cachedToken{},
 	}
 }
 
@@ -78,6 +78,7 @@ func (s *session) run(args []string) error {
 		"sqs": s.viaSQS, "tx": s.tx, "ops": s.listOps, "as": s.as,
 		"events": s.events, "dlq": s.dlq, "poison": s.poison, "redeliver": s.redeliver,
 		"flood": s.flood, "unblock": s.unblock, "auth": s.auth, "health": s.health, "metrics": s.metrics,
+		"login": s.loginCmd,
 	}
 	h, ok := handlers[cmd]
 	if !ok {
@@ -98,7 +99,7 @@ carteira (token wallet-admin)
 operações (token do provedor atual)
   bet <valor> [id]        BET; id opcional para você escolher o externalTransactionId
   win <valor> [id]        WIN
-  loss                    LOSS com 0.00
+  loss                    LOSS com 0.00 (não recebe valor)
   refund <id-da-aposta>   REFUND devolvendo a aposta
   rollback <id>           ROLLBACK de BET, WIN ou REFUND
   replay <id>             reenvia exatamente o mesmo payload e chave -> idempotentReplay
@@ -113,7 +114,8 @@ fila (LocalStack)
   redeliver [id]          reenvia o mesmo envelope (mesmo messageId; padrão o último sqs) -> inbox ignora, saldo não muda
   poison                  manda uma mensagem inválida e mostra ela chegando na DLQ
   dlq                     lê (e remove) o que está na DLQ
-  events [n]              lê (e remove) os eventos publicados pela outbox em wallet-events.fifo
+  events [n|all]          lê (e remove) até n eventos de wallet-events.fifo (padrão 50), em ordem de
+                          horário, mostrando os da carteira atual; 'all' mostra também os das outras
 
 concorrência
   race <valor> [n]        n cópias da mesma aposta em paralelo (padrão 50) -> um débito
@@ -130,6 +132,7 @@ proteções e operação
 sessão
   ops                     operações enviadas nesta sessão
   as <provider-a|provider-b|wallet-admin>   troca o token usado nas operações
+  login                   renova os tokens agora (eles valem 5 min e são renovados sozinhos quando vencem)
   help | comandos | cmds | ações   esta lista
   quit
 `)

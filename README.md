@@ -209,13 +209,14 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 | `redeliver [id]` | id enviado por `sqs`; padrão o último | reenvia o mesmo envelope e `messageId`; a inbox ignora e o saldo não muda | `redeliver` |
 | `poison` | | manda mensagem inválida e acompanha até a DLQ | `poison` |
 | `dlq` | | lê e remove o que está na DLQ, com o motivo | `dlq` |
-| `events [n]` | n padrão 50 | lê e remove eventos de `wallet-events.fifo`; `*` marca a carteira atual | `events 20` |
+| `events [n\|all]` | n padrão 50; `all` inclui outras carteiras | lê e remove eventos de `wallet-events.fifo`, em ordem de horário, com os da carteira atual em verde | `events`, `events all 20` |
 | `flood [n]` | n padrão 400 | n GETs rápidos com o token atual; espera 429 com `Retry-After` | `flood 500` |
 | `unblock [client\|all]` | `provider-a`, `provider-b`, `wallet-admin` ou `all`; padrão o provedor atual | zera o bucket do chamador em cada instância (`DELETE /rate-limits/{sub}` com `wallet-admin`); sem isso o 429 só some quando o bucket enche de novo | `unblock`, `unblock all` |
 | `auth` | | oito chamadas (sem token, inválido, provedor errado, role errada e as que devem passar) com o código esperado | `auth` |
 | `health` | | live e ready no nginx e nas três instâncias | `health` |
 | `metrics [filtro]` | filtro padrão `wager_` | linhas de `/metrics` de cada instância | `metrics outbox` |
 | `as <client>` | `provider-a`, `provider-b`, `wallet-admin` | troca o token das operações; `provider-b` não enxerga o que é de A | `as provider-b` |
+| `login` | | renova os tokens agora; eles valem 5 minutos e o prompt renova sozinho ao vencer | `login` |
 | `ops` | | operações desta sessão | `ops` |
 | `quit` | | sai | |
 

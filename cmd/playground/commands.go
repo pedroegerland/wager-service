@@ -95,7 +95,28 @@ func kindLower(k string) string { return map[string]string{"BET": "bet", "WIN": 
 func (s *session) bet(args []string) error { return s.movement("BET", args) }
 func (s *session) win(args []string) error { return s.movement("WIN", args) }
 
-func (s *session) loss([]string) error {
+func (s *session) loginCmd([]string) error {
+	clients := []string{s.provider}
+	if s.provider != "wallet-admin" {
+		clients = append(clients, "wallet-admin")
+	}
+	for _, c := range clients {
+		s.forgetToken(c)
+		if _, err := s.login(c); err != nil {
+			return err
+		}
+		s.mu.Lock()
+		exp := s.tokens[c].expiresAt
+		s.mu.Unlock()
+		fmt.Println(green(fmt.Sprintf("token de %s renovado, vale até %s", c, exp.Local().Format("15:04:05"))))
+	}
+	return nil
+}
+
+func (s *session) loss(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("LOSS é sempre 0.00 e não recebe valor; use apenas: loss")
+	}
 	op := operation{kind: "LOSS", amount: "0.00", ext: s.newExt("LOSS")}
 	r, err := s.submit(op)
 	if err != nil {

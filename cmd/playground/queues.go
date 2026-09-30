@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -74,8 +75,13 @@ func (s *session) drainQueue(ctx context.Context, path string, max int) ([]map[s
 
 func (s *session) events(args []string) error {
 	max := 50
-	if len(args) > 0 {
-		if v, err := strconv.Atoi(args[0]); err == nil && v > 0 {
+	showAll := false
+	for _, a := range args {
+		if a == "all" || a == "todos" {
+			showAll = true
+			continue
+		}
+		if v, err := strconv.Atoi(a); err == nil && v > 0 {
 			max = v
 		}
 	}
@@ -86,31 +92,76 @@ func (s *session) events(args []string) error {
 		return err
 	}
 	if len(items) == 0 {
-		fmt.Println("fila wallet-events.fifo vazia")
+		fmt.Println(yellow("fila wallet-events.fifo vazia: nenhum evento pendente de leitura"))
 		return nil
 	}
-	fmt.Printf("%d eventos lidos e removidos de wallet-events.fifo (* = carteira atual)\n", len(items))
+	sort.SliceStable(items, func(i, j int) bool {
+		return fmt.Sprint(items[i]["occurredAt"]) < fmt.Sprint(items[j]["occurredAt"])
+	})
+
+	mine, others := 0, 0
 	for _, it := range items {
 		agg, _ := it["aggregateId"].(string)
-		mark := " "
 		if agg == s.walletID {
-			mark = "*"
+			mine++
+		} else {
+			others++
+		}
+	}
+	fmt.Printf("%d eventos lidos e removidos de wallet-events.fifo: %d desta carteira, %d de outras\n", len(items), mine, others)
+	if s.walletID == "" {
+		fmt.Println(yellow("sem carteira aberta nesta sessão; mostrando todos"))
+		showAll = true
+	}
+	fmt.Printf("  %-8s %-34s %-9s %-22s %s\n", "hora", "evento", "carteira", "transação (fim do id)", "detalhe")
+	for _, it := range items {
+		agg, _ := it["aggregateId"].(string)
+		isMine := agg == s.walletID
+		if !isMine && !showAll {
+			continue
 		}
 		data, _ := it["data"].(map[string]any)
+		txID, _ := data["transactionId"].(string)
 		detail := ""
 		switch it["eventType"] {
 		case "WalletBalanceChanged":
-			detail = fmt.Sprintf("%s %s  %s -> %s  v%v", data["direction"], amountOf(data["money"]), amountOf(data["balanceBefore"]), amountOf(data["balanceAfter"]), data["walletVersion"])
+			detail = fmt.Sprintf("%s %s: %s -> %s (versão %v)", data["direction"], amountOf(data["money"]), amountOf(data["balanceBefore"]), amountOf(data["balanceAfter"]), data["walletVersion"])
 		case "WagerTransactionProcessed":
-			detail = fmt.Sprintf("%s %s  saldo %s", data["kind"], amountOf(data["money"]), amountOf(data["balanceAfter"]))
+			detail = fmt.Sprintf("%s %s, saldo %s", data["kind"], amountOf(data["money"]), amountOf(data["balanceAfter"]))
 		case "WagerTransactionRejected":
-			detail = fmt.Sprintf("%s %s  %s", data["kind"], amountOf(data["money"]), data["failureCode"])
+			detail = fmt.Sprintf("%s %s, %s", data["kind"], amountOf(data["money"]), data["failureCode"])
 		case "WagerTransactionPendingReference":
 			detail = fmt.Sprintf("%s aguardando %s (tentativa %v)", data["kind"], data["referenceExternalTransactionId"], data["attempt"])
 		}
-		fmt.Printf(" %s %-34s %s  %s\n", mark, it["eventType"], shortID(agg), detail)
+		if ext, _ := data["externalTransactionId"].(string); ext != "" {
+			detail += "  [" + ext + "]"
+		}
+		line := fmt.Sprintf("  %-8s %-34s %-9s %-22s %s", eventClock(it["occurredAt"]), it["eventType"], shortID(agg), idSuffix(txID), detail)
+		if isMine {
+			fmt.Println(green(line))
+		} else {
+			fmt.Println(line)
+		}
+	}
+	if !showAll && others > 0 {
+		fmt.Println(yellow(fmt.Sprintf("%d eventos de outras carteiras foram lidos e omitidos; 'events all' mostra todos", others)))
 	}
 	return nil
+}
+
+func idSuffix(id string) string {
+	if len(id) > 12 {
+		return "…" + id[len(id)-12:]
+	}
+	return id
+}
+
+func eventClock(v any) string {
+	t, err := time.Parse(time.RFC3339Nano, fmt.Sprint(v))
+	if err != nil {
+		return "?"
+	}
+	return t.Local().Format("15:04:05")
 }
 
 func amountOf(v any) string {

@@ -13,13 +13,22 @@ import (
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 
+type cachedToken struct {
+	value     string
+	expiresAt time.Time
+}
+
 func (s *session) token(client string) (string, error) {
 	s.mu.Lock()
 	t, ok := s.tokens[client]
 	s.mu.Unlock()
-	if ok {
-		return t, nil
+	if ok && time.Until(t.expiresAt) > 15*time.Second {
+		return t.value, nil
 	}
+	return s.login(client)
+}
+
+func (s *session) login(client string) (string, error) {
 	form := url.Values{"grant_type": {"client_credentials"}, "client_id": {client}, "client_secret": {client + "-secret"}}
 	resp, err := httpClient.PostForm(s.keycloakURL+"/realms/wager/protocol/openid-connect/token", form)
 	if err != nil {
@@ -32,12 +41,22 @@ func (s *session) token(client string) (string, error) {
 	}
 	var out struct {
 		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
 	}
 	_ = json.Unmarshal(body, &out)
+	if out.ExpiresIn <= 0 {
+		out.ExpiresIn = 300
+	}
 	s.mu.Lock()
-	s.tokens[client] = out.AccessToken
+	s.tokens[client] = cachedToken{value: out.AccessToken, expiresAt: time.Now().Add(time.Duration(out.ExpiresIn) * time.Second)}
 	s.mu.Unlock()
 	return out.AccessToken, nil
+}
+
+func (s *session) forgetToken(client string) {
+	s.mu.Lock()
+	delete(s.tokens, client)
+	s.mu.Unlock()
 }
 
 type reply struct {
@@ -58,6 +77,10 @@ func (r reply) amount(k string) string {
 }
 
 func (s *session) call(method, path, client string, body any, headers map[string]string) (reply, error) {
+	return s.callOnce(method, path, client, body, headers, false)
+}
+
+func (s *session) callOnce(method, path, client string, body any, headers map[string]string, retried bool) (reply, error) {
 	tok, err := s.token(client)
 	if err != nil {
 		return reply{}, err
@@ -86,6 +109,11 @@ func (s *session) call(method, path, client string, body any, headers map[string
 	raw, _ := io.ReadAll(resp.Body)
 	out := reply{status: resp.StatusCode, raw: strings.TrimSpace(string(raw))}
 	_ = json.Unmarshal(raw, &out.body)
+	if out.status == http.StatusUnauthorized && !retried && tok != "" {
+		s.forgetToken(client)
+		fmt.Println(yellow("token de " + client + " expirou; renovando e repetindo a chamada"))
+		return s.callOnce(method, path, client, body, headers, true)
+	}
 	return out, nil
 }
 
