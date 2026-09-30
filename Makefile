@@ -44,8 +44,10 @@ deps-down:
 migrate-up:
 	docker compose run --rm migrate up
 
+## reverte tudo. Com a api no ar, reinicie as instancias depois de subir de novo (o pool guarda planos dos tipos antigos)
 migrate-down:
 	docker compose run --rm --entrypoint migrate migrate down
+	@echo "schema revertido. Depois de 'make migrate-up', rode: docker compose restart api-1 api-2 api-3"
 
 migrate-version:
 	docker compose run --rm --entrypoint migrate migrate version

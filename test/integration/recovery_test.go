@@ -65,12 +65,12 @@ func TestOutboxRetriesAfterPublishFailure(t *testing.T) {
 	owner := "retry-test-" + shortID()
 	_, err := pool.Exec(context.Background(), `INSERT INTO outbox_events
 		(id, aggregate_id, event_type, payload, occurred_at, next_attempt_at, locked_by, locked_until)
-		VALUES ($1, gen_random_uuid(), 'IntegrationTestRetry', '{}', now(), now(), $2, now() + interval '1 minute')`, id, owner)
+		VALUES ($1, gen_random_uuid(), 'IntegrationTestRetry', '{}', now() - interval '10 years', now(), $2, now() + interval '1 minute')`, id, owner)
 	must(t, err)
 
 	pub := &flakyPublisher{failuresLeft: 1}
 	p := worker.NewOutboxPublisher(postgres.NewUnitOfWork(pool), pub, worker.OutboxConfig{
-		Owner: owner, BatchSize: 100, BaseBackoff: 300 * time.Millisecond, MaxBackoff: time.Second,
+		Owner: owner, BatchSize: 1, BaseBackoff: 300 * time.Millisecond, MaxBackoff: time.Second,
 	}, quietLog(), nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

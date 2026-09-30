@@ -39,6 +39,7 @@ func TestTranslateError(t *testing.T) {
 		{&pgconn.PgError{Code: "23505", ConstraintName: "wallets_player_currency_unique"}, port.ErrConflict},
 		{&pgconn.PgError{Code: "40001"}, port.ErrUnavailable},
 		{&pgconn.PgError{Code: "40P01"}, port.ErrUnavailable},
+		{&pgconn.PgError{Code: "0A000", Message: "cached plan must not change result type"}, port.ErrUnavailable},
 		{&pgconn.PgError{Code: "57P01"}, port.ErrUnavailable},
 		{context.DeadlineExceeded, port.ErrUnavailable},
 		{&net.OpError{Op: "dial", Err: errors.New("refused")}, port.ErrUnavailable},

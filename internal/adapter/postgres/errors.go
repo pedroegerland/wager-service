@@ -19,12 +19,11 @@ func translateError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return port.ErrNotFound
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
 		switch pgErr.Code {
 		case "23505":
 			return fmt.Errorf("%w: %w", &port.ConflictError{Constraint: pgErr.ConstraintName}, err)
-		case "40001", "40P01":
+		case "40001", "40P01", "0A000":
 			return fmt.Errorf("%w: %w", port.ErrUnavailable, err)
 		case "57P01", "57P02", "57P03", "08000", "08003", "08006", "53300":
 			return fmt.Errorf("%w: %w", port.ErrUnavailable, err)

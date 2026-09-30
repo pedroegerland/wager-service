@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+func isHelp(cmd string) bool {
+	switch cmd {
+	case "help", "comandos", "comando", "cmds", "cmd", "acoes", "ações":
+		return true
+	}
+	return false
+}
+
 func main() {
 	s := newSession()
 	fmt.Println("wager-service playground")
@@ -33,8 +41,12 @@ func main() {
 		if line == "quit" || line == "exit" {
 			return
 		}
-		if err := s.run(strings.Fields(line)); err != nil {
+		fields := strings.Fields(line)
+		if err := s.run(fields); err != nil {
 			fmt.Println("erro:", err)
+		}
+		if !isHelp(fields[0]) {
+			fmt.Println("quer ver os comandos? digite help (ou comandos, cmds, ações)")
 		}
 		fmt.Println()
 	}

@@ -93,6 +93,11 @@ docker compose run --rm migrate version
 
 Fora do docker: `DATABASE_URL=postgres://wager:wager@localhost:5432/wager?sslmode=disable go run ./cmd/migrate up`.
 
+Reverter e reaplicar com a API no ar recria os tipos do schema, e cada conexão do pool
+falha uma vez por statement cacheado (Postgres responde "cached plan must not change
+result type", que a API devolve como 503 com `Retry-After`). Depois de `migrate up`,
+`docker compose restart api-1 api-2 api-3` deixa tudo limpo.
+
 ## Autenticação
 
 Keycloak sobe com o realm `wager` importado de `deploy/keycloak/realm-wager.json`, com
@@ -214,7 +219,8 @@ Valores aceitam `xx.yy`, inteiro (`25` vira `25.00`) ou uma casa (`2.5` vira `2.
 | `ops` | | operações desta sessão | `ops` |
 | `quit` | | sai | |
 
-Um roteiro que passa por tudo:
+Um roteiro que passa por tudo (os ids `aposta-1` e `aposta-x` precisam ser inéditos para o
+provedor; rodando de novo, troque os nomes ou deixe o playground gerar):
 
 ```
 open 100
