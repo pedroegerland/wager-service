@@ -124,8 +124,8 @@ fila (LocalStack)
   redeliver [id]          reenvia o mesmo envelope (mesmo messageId; padrão o último sqs) -> inbox ignora, saldo não muda
   poison                  manda uma mensagem inválida e mostra ela chegando na DLQ
   dlq                     lê (e remove) o que está na DLQ
-  events [n|all]          lê (e remove) até n eventos de wallet-events.fifo (padrão 50), em ordem de
-                          horário, mostrando os da carteira atual; 'all' mostra também os das outras
+  events [n|all]          lê (e remove) até n eventos de wallet-events.fifo (padrão 50), do mais recente
+                          ao mais antigo, mostrando os da carteira atual; 'all' mostra também os das outras
 
 concorrência
   race <valor> [n]        n cópias da mesma aposta em paralelo (padrão 50) -> um débito

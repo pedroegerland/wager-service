@@ -96,7 +96,7 @@ func (s *session) events(args []string) error {
 		return nil
 	}
 	sort.SliceStable(items, func(i, j int) bool {
-		return fmt.Sprint(items[i]["occurredAt"]) < fmt.Sprint(items[j]["occurredAt"])
+		return fmt.Sprint(items[i]["occurredAt"]) > fmt.Sprint(items[j]["occurredAt"])
 	})
 
 	mine, others := 0, 0
@@ -108,7 +108,7 @@ func (s *session) events(args []string) error {
 			others++
 		}
 	}
-	fmt.Printf("%d eventos lidos e removidos de wallet-events.fifo: %d desta carteira, %d de outras\n", len(items), mine, others)
+	fmt.Printf("%d eventos lidos e removidos de wallet-events.fifo (mais recente primeiro): %d desta carteira, %d de outras\n", len(items), mine, others)
 	if s.walletID == "" {
 		fmt.Println(yellow("sem carteira aberta nesta sessão; mostrando todos"))
 		showAll = true
