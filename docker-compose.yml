@@ -1,0 +1,108 @@
+x-api: &api
+  build: .
+  env_file: .env
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    localstack:
+      condition: service_healthy
+    keycloak:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wager}
+      POSTGRES_DB: ${POSTGRES_DB:-wager}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wager} -d ${POSTGRES_DB:-wager}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:4
+    environment:
+      SERVICES: sqs
+      DEBUG: 0
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./deploy/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name wallet-events.fifo"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # fixed hostname so the issuer is the same whether a token is
+      # requested from the host (localhost:8180) or from the network
+      KC_HOSTNAME: http://localhost:8180
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./deploy/keycloak/realm-wager.json:/opt/keycloak/data/import/realm-wager.json:ro
+    healthcheck:
+      # the image has no curl; bash's /dev/tcp is enough to see the management port answer
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  migrate:
+    build: .
+    entrypoint: ["migrate", "up"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api-1:
+    <<: *api
+    ports:
+      - "8081:8080"
+  api-2:
+    <<: *api
+    ports:
+      - "8082:8080"
+  api-3:
+    <<: *api
+    ports:
+      - "8083:8080"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+      api-3:
+        condition: service_healthy
+
+volumes:
+  pgdata:
