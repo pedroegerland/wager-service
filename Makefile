@@ -2,7 +2,7 @@ export CGO_ENABLED=0
 GOFLAGS ?=
 
 .PHONY: build test test-race vet fmt lint up down logs migrate-up migrate-down migrate-version \
-        deps-up deps-down test-integration test-multi token demo verify clean
+        deps-up deps-down test-integration test-multi token demo verify play clean
 
 build:
 	go build $(GOFLAGS) -o bin/wager-service ./cmd/wager-service
@@ -69,6 +69,10 @@ demo:
 ## gofmt + vet + unitarios + integracao (precisa do ambiente no ar)
 verify:
 	@scripts/verify.sh
+
+## REPL interativo contra o ambiente no ar: abra carteira, aposte, replay, conflito, corrida, sqs
+play:
+	go run ./cmd/playground
 
 clean:
 	rm -rf bin

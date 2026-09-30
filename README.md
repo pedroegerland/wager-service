@@ -142,6 +142,33 @@ awslocal sqs send-message --queue-url http://localhost:4566/000000000000/wager-t
 
 Métricas em `GET /metrics` (formato Prometheus) em cada instância.
 
+### Teste você mesmo
+
+Com o ambiente no ar, `make play` abre um prompt que conversa com a API e com a fila.
+Ele pega os tokens no Keycloak sozinho, guarda a carteira e as operações da sessão, e
+tem atalhos para os cenários do enunciado:
+
+```
+$ make play
+[provider-a | sem carteira] > open 100.00
+[provider-a | carteira 01a0f3b7 | 100.00 BRL] > bet 25.00 aposta-1
+[provider-a | carteira 01a0f3b7 | 75.00 BRL] > replay aposta-1        # idempotentReplay: true, mesmo saldo
+[provider-a | carteira 01a0f3b7 | 75.00 BRL] > conflict aposta-1 26.00 # 409 IDEMPOTENCY_KEY_CONFLICT
+[provider-a | carteira 01a0f3b7 | 75.00 BRL] > refund aposta-1        # crédito de volta
+[provider-a | carteira 01a0f3b7 | 100.00 BRL] > rollback aposta-1     # 422 REFERENCE_ALREADY_REVERSED
+[provider-a | carteira 01a0f3b7 | 100.00 BRL] > race 5.00 50          # 50 cópias em paralelo: 1 processada, 49 replays
+[provider-a | carteira 01a0f3b7 | 95.00 BRL] > open 100.00
+[provider-a | carteira 01a0f3c1 | 100.00 BRL] > race2 80.00 80.00     # uma PROCESSED, uma INSUFFICIENT_FUNDS, saldo 20.00
+[provider-a | carteira 01a0f3c1 | 20.00 BRL] > sqs BET 10.00          # pela fila; mesma idempotência
+[provider-a | carteira 01a0f3c1 | 10.00 BRL] > ledger
+[provider-a | carteira 01a0f3c1 | 10.00 BRL] > reconcile
+[provider-a | carteira 01a0f3c1 | 10.00 BRL] > as provider-b          # troca o token: provider-b não vê as transações de A
+```
+
+`help` lista tudo. `refund`/`rollback` antes da aposta existir mostram o `PENDING_REFERENCE`
+e a resolução quando a aposta chega. Também dá para rodar direto: `go run ./cmd/playground`
+(variáveis `API_URL`, `KEYCLOAK_URL`, `AWS_ENDPOINT_URL` para apontar para outro lugar).
+
 ### Respostas de erro
 
 | Situação | HTTP | `code` |
@@ -235,6 +262,7 @@ docker compose unpause api-1
 ```
 cmd/wager-service      binário principal (HTTP + consumidor + workers)
 cmd/migrate            aplica/reverte migrations
+cmd/playground         REPL para testar a API e a fila na mão (make play)
 internal/domain        money, wallet, wager, event — regras de negócio, sem dependências externas
 internal/app/port      interfaces que os casos de uso precisam (repositórios, unit of work, publisher, clock, métricas)
 internal/app/wagering  processamento de operações: process_operation, business_rules, pending_reference
