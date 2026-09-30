@@ -2,7 +2,7 @@ export CGO_ENABLED=0
 GOFLAGS ?=
 
 .PHONY: build test test-race vet fmt lint up down logs migrate-up migrate-down migrate-version \
-        deps-up deps-down test-integration test-multi token demo verify play clean
+        deps-up deps-down infra test-integration test-multi token demo verify play clean
 
 build:
 	go build $(GOFLAGS) -o bin/wager-service ./cmd/wager-service
@@ -50,14 +50,18 @@ migrate-down:
 migrate-version:
 	docker compose run --rm --entrypoint migrate migrate version
 
-## integration tests against the containers (deps-up first). Build tag keeps them out of `go test ./...`
-test-integration:
-	go test -race -tags integration -count=1 -timeout 10m ./test/integration/...
+## detecta o sistema, inicia o docker se preciso e sobe o que não estiver respondendo
+infra:
+	@scripts/ensure-infra.sh
 
-## same suite, but targeting the three running instances through nginx (make up first)
-test-multi:
+## integration tests with the app booted in-process against the real containers. Build tag keeps them out of `go test ./...`
+test-integration: infra
+	go test -race -tags integration -count=1 -timeout 15m ./test/integration/... ./internal/adapter/sqs/...
+
+## same suite, but targeting the three running instances directly
+test-multi: infra
 	API_URL=http://localhost:8080 API_INSTANCES=http://localhost:8081,http://localhost:8082,http://localhost:8083 \
-	go test -race -tags integration -count=1 -timeout 10m -run 'Multi|Concurrent|Independent' ./test/integration/...
+	go test -race -tags integration -count=1 -timeout 15m ./test/integration/...
 
 token:
 	@scripts/token.sh $(or $(CLIENT),provider-a)

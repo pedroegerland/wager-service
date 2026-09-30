@@ -1,43 +1,23 @@
 #!/usr/bin/env bash
-# Sobe o ambiente completo do zero e roda um fluxo de exemplo no final.
+# Sobe o ambiente (se preciso) e roda um fluxo de exemplo no final.
 # Uso: scripts/local-up.sh [--no-demo]   (ou: make demo)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-DEMO=1
-[ "${1:-}" = "--no-demo" ] && DEMO=0
+
+scripts/ensure-infra.sh
+[ "${1:-}" = "--no-demo" ] && exit 0
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
-
-step "verificando pré-requisitos"
-command -v docker >/dev/null || { echo "docker não encontrado"; exit 1; }
-docker info >/dev/null 2>&1 || { echo "docker daemon não está rodando"; exit 1; }
-docker compose version >/dev/null 2>&1 || { echo "docker compose v2 não encontrado"; exit 1; }
-command -v curl >/dev/null || { echo "curl não encontrado"; exit 1; }
-[ -f .env ] || { cp .env.example .env; echo ".env criado a partir de .env.example"; }
-
-step "subindo postgres, keycloak, localstack, migrations, 3 instâncias da api e nginx"
-docker compose up --build -d
-
-step "aguardando as três instâncias ficarem prontas"
-for i in $(seq 1 90); do
-  if curl -sf localhost:8081/health/ready >/dev/null && curl -sf localhost:8082/health/ready >/dev/null && curl -sf localhost:8083/health/ready >/dev/null; then
-    break
-  fi
-  sleep 2
-  [ "$i" -eq 90 ] && { echo "timeout esperando a api; veja: docker compose logs api-1"; exit 1; }
-done
-docker compose ps --format 'table {{.Service}}\t{{.Status}}'
-
-if [ "$DEMO" = "0" ]; then
-  echo
-  echo "ambiente pronto."
-  exit 0
-fi
+new_uuid() {
+  uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null \
+    || python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null \
+    || powershell.exe -NoProfile -Command '[guid]::NewGuid().ToString()' 2>/dev/null | tr -d '\r'
+}
 
 step "fluxo de exemplo pela nginx (localhost:8080)"
 ADMIN=$(scripts/token.sh wallet-admin)
 PROV=$(scripts/token.sh provider-a)
-PLAYER=$(uuidgen | tr 'A-F' 'a-f')
+PLAYER=$(new_uuid | tr 'A-F' 'a-f')
 RUN=${PLAYER:0:8}
 
 echo "# abrindo carteira com 1000.00 BRL"
@@ -69,6 +49,7 @@ Pronto.
   api (nginx, 3 instâncias): http://localhost:8080   instâncias: :8081 :8082 :8083
   keycloak:                  http://localhost:8180   (admin / admin)
   tokens:                    scripts/token.sh provider-a | provider-b | wallet-admin
-  testes:                    scripts/verify.sh
+  testar na mão:             make play
+  testes:                    make verify
   derrubar:                  docker compose down -v
 MSG

@@ -9,9 +9,20 @@ As decisões de projeto estão em [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Pré-requisitos
 
-- Docker + Docker Compose v2
-- Go 1.27 (só para rodar os testes fora do container)
-- `make` (opcional, os comandos estão todos listados abaixo)
+- Docker Desktop (macOS, Windows) ou Docker Engine + compose plugin (Linux)
+- Go 1.27 para testes e playground; a API em si roda em container
+- `curl`; `make` é opcional, cada alvo é um script em `scripts/`
+
+Os alvos que dependem da infra (`make demo`, `make play`, `make verify`,
+`make test-integration`, `make test-multi`) passam por `scripts/ensure-infra.sh`, que
+detecta o sistema, inicia o Docker Desktop se estiver parado (macOS, Windows, WSL) ou o
+serviço (`systemctl`, Linux), confere as ferramentas com a dica de instalação de cada
+sistema, cria o `.env` e sobe só o que não estiver respondendo. `go test ./...`,
+`go test -race ./...` e `go vet ./...` não precisam de nada rodando.
+
+No Windows, rode no Git Bash ou no WSL (`scripts/play.sh`, `scripts/local-up.sh`,
+`scripts/verify.sh` funcionam nos dois); no PowerShell puro só os comandos `docker compose`
+e `go` diretos.
 
 Portas usadas no host: 8080 (nginx na frente das 3 instâncias), 8081-8083 (cada
 instância), 8180 (Keycloak), 5432 (Postgres), 4566 (LocalStack).

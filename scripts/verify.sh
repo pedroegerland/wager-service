@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Roda todas as verificações: formatação, vet, unitários com -race e integração
-# contra os containers (precisa do ambiente no ar: scripts/local-up.sh).
+# contra os containers. Sobe o ambiente antes se ele não estiver no ar.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export CGO_ENABLED=0
+scripts/ensure-infra.sh
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
